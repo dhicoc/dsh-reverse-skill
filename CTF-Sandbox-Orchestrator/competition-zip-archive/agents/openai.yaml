@@ -1,0 +1,7 @@
+interface:
+  display_name: "Competition ZIP Archive"
+  short_description: "Solve legacy encrypted ZIP challenges with known plaintext and bkcrack"
+  default_prompt: "After $ctf-sandbox-orchestrator is active, use $competition-zip-archive to identify ZIP encryption, recover ZipCrypto keys with exact known plaintext, unlock a copy, and preserve reproducible evidence."
+
+policy:
+  allow_implicit_invocation: false

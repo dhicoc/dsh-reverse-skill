@@ -1,0 +1,12 @@
+# Source / build / dev only — keep these OUT of the npm tarball.
+# NOTE: a .npmignore is present so npm uses THIS file (not .gitignore) to decide
+# package contents. .gitignore excludes lib/ (build output) from git, but the
+# published package MUST ship lib/ — so lib/ is deliberately absent from this list.
+src
+*.tsbuildinfo
+tsconfig.json
+port.py
+.gitignore
+node_modules
+debug*.mjs
+smoke.mjs
