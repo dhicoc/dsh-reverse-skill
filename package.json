@@ -14,12 +14,18 @@
   "files": [
     "lib",
     "skills",
-    "CTF-Sandbox-Orchestrator"
+    "CTF-Sandbox-Orchestrator",
+    "cordis.patch.yml"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zhaoxuya520/reverse-skill.git"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
   },
   "keywords": [
     "deepseek",

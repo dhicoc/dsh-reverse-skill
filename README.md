@@ -61,7 +61,14 @@ npm run build        # tsc → 生成 lib/ 与 lib/types/
 
 ### 2. 在 dsh 中启用本插件
 
-把包加入 dsh 的插件清单（在你的 harness profile / package 配置里引用包名 `@reverse-skill/dsh-reverse-skill`）。典型形态如下，具体键名以你使用的 dsh 版本为准：
+本仓库已声明 `dsh.bundle` manifest（见 `cordis.patch.yml`），因此可直接用一行命令安装并激活：
+
+```bash
+# 从 GitHub 安装并激活（推荐）
+dsh plugin add github:dhicoc/dsh-reverse-skill
+```
+
+安装后 dsh 会读取 `cordis.patch.yml` 把 `reverse-skill` 这个 Cordis 插件插入当前 profile，启动时自动注册 85 个技能。若你想在 profile / package 配置里手动引用，包名是 `@reverse-skill/dsh-reverse-skill`：
 
 ```yaml
 # dsh 配置（示例，键名可能因版本而异）

@@ -1,0 +1,8 @@
+# DSH bundle profile patch.
+# This is what makes the plugin installable AND active via:
+#   dsh plugin add github:dhicoc/dsh-reverse-skill
+# `id`   = the Cordis plugin id (see `export const name` in src/index.ts)
+# `name` = the npm package name (resolved from node_modules after install)
+- insert:
+    - id: reverse-skill
+      name: "@reverse-skill/dsh-reverse-skill"
