@@ -1,0 +1,36 @@
+name: Publish to npm
+
+# 自动发布到 npm。两种触发方式（任一即可）：
+#   1. 在 GitHub 上创建一个 Release（published）——推荐，方便写变更说明；
+#   2. 推送一个形如 v1.2.3 的 tag。
+on:
+  release:
+    types: [published]
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # 只需读代码；发布凭证通过 NODE_AUTH_TOKEN 传入，不需要写权限。
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      # npm ci 会触发 prepare 脚本（tsc）生成 lib/；publish 时 prepublishOnly 再构建一次，确保 lib/ 最新。
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -110,6 +110,20 @@ skills:
 
 ---
 
+## 发布（GitHub Actions 自动 npm publish）
+
+本仓库自带 `.github/workflows/publish.yml`：在 GitHub 上 **创建 Release（published）** 或 **推送 `v*` tag**（如 `v1.0.1`）即自动 `npm ci` + `npm publish --access public`。
+
+发布前需在本仓库 **Settings → Secrets and variables → Actions** 里配置一个仓库密钥：
+
+- **`NPM_TOKEN`**：具有 `publish` 权限的 npm token（Classic Token 勾选 `Publish`；或 Granular Access Token 对该包授予 `Read and write`）。
+
+> ⚠️ **npm scope 归属提醒**：包名是 `@reverse-skill/dsh-reverse-skill`，作用域 `@reverse-skill` 必须由你（或 reverse-skill 组织）在 npm 上拥有，否则 `npm publish` 会报 403 无权限。若你个人没有该 scope，请先把 `package.json` 里的 `name` 改成你自己的 scope（例如 `@dhicoc/dsh-reverse-skill`）再发布——CI 直接读取 `package.json` 的 `name`，无需改 workflow。
+
+> 想做 npm provenance（发布来源证明）的话，可给 job 加 `permissions: { id-token: write }` 并在 `npm publish` 加 `--provenance`，并在 npm 配置 trusted publisher；非必须。
+
+---
+
 ## License
 
 `LICENSE` 为 **MIT**，与上游 `reverse-skill` 保持一致。内容版权归原 upstream 作者与贡献者；本仓库为 dsh 适配封装。
