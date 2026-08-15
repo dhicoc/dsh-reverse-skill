@@ -1,5 +1,8 @@
 # dsh-reverse-skill
 
+[![Awesome](https://awesome.re/badge.svg)](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)
+
+
 > **reverse-skill 的完整 DeepSeek Harness（dsh）插件版。**
 > 把上游 [`zhaoxuya520/reverse-skill`](https://github.com/zhaoxuya520/reverse-skill)（25k★，MIT）全部 **85 个 SKILL.md** 原样封装成一个 dsh Cordis 插件，随包分发、随插件加载，无需手动维护候选清单。
 
