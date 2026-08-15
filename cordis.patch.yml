@@ -5,4 +5,4 @@
 # `name` = the npm package name (resolved from node_modules after install)
 - insert:
     - id: reverse-skill
-      name: "@reverse-skill/dsh-reverse-skill"
+      name: "@dhicoc/dsh-reverse-skill"

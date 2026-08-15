@@ -26,9 +26,10 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
-      # npm ci 会触发 prepare 脚本（tsc）生成 lib/；publish 时 prepublishOnly 再构建一次，确保 lib/ 最新。
+      # lib/ 已随仓库提交；npm install 仅装 devDependencies 以便 prepare 重跑。
+      # 改了 package name 后 package-lock.json 会与 package.json 不同步，故用 npm install（会自动 reconcile），不用 npm ci。
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Publish to npm
         run: npm publish --access public
