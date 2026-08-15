@@ -20,7 +20,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zhaoxuya520/reverse-skill.git"
+    "url": "git+https://github.com/dhicoc/dsh-reverse-skill.git"
+  },
+  "homepage": "https://github.com/dhicoc/dsh-reverse-skill#readme",
+  "bugs": {
+    "url": "https://github.com/dhicoc/dsh-reverse-skill/issues"
   },
   "dsh": {
     "bundle": {
