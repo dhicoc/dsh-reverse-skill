@@ -1,5 +1,6 @@
 # build output
-lib/
+# 注意：lib/ 故意不忽略——本插件为 dsh 的 git 安装（dsh plugin add github:...）提供预编译产物，
+# 安装时不跑 prepare（否则触发 pnpm allowBuilds 墙），故 lib/ 必须随仓库提交。
 dist/
 *.tsbuildinfo
 
