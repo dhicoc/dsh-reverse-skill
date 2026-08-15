@@ -75,12 +75,12 @@ npm run build        # tsc → 生成 lib/ 与 lib/types/
 dsh plugin add github:dhicoc/dsh-reverse-skill
 ```
 
-安装后 dsh 会读取 `cordis.patch.yml` 把 `reverse-skill` 这个 Cordis 插件插入当前 profile，启动时自动注册 85 个技能。若你想在 profile / package 配置里手动引用，包名是 `@reverse-skill/dsh-reverse-skill`：
+安装后 dsh 会读取 `cordis.patch.yml` 把 `reverse-skill` 这个 Cordis 插件插入当前 profile，启动时自动注册 85 个技能。若你想在 profile / package 配置里手动引用，包名是 `@dhicoc/dsh-reverse-skill`：
 
 ```yaml
 # dsh 配置（示例，键名可能因版本而异）
 plugins:
-  - "@reverse-skill/dsh-reverse-skill"
+  - "@dhicoc/dsh-reverse-skill"
 ```
 
 加载后，插件在 `apply(ctx)` 里调用 `ctx.skills.registerProvider(...)`，把 85 个技能注册进 `ctx.skills`。模型可通过 `ctx.skills` → `tool-skill` 自动调用，用户也可通过技能名手动调用（受各 SKILL.md 的 `user-invocable` 控制）。
@@ -126,13 +126,16 @@ skills:
 
 ## 发布（GitHub Actions 自动 npm publish）
 
-本仓库自带 `.github/workflows/publish.yml`：在 GitHub 上 **创建 Release（published）** 或 **推送 `v*` tag**（如 `v1.0.1`）即自动 `npm ci` + `npm publish --access public`。
+本仓库自带 `.github/workflows/publish.yml`：在 GitHub 上 **创建 Release（published）** 或 **推送 `v*` tag**（如 `v1.0.2`）即自动 `npm install` + `npm publish --access public`。
 
 发布前需在本仓库 **Settings → Secrets and variables → Actions** 里配置一个仓库密钥：
 
-- **`NPM_TOKEN`**：具有 `publish` 权限的 npm token（Classic Token 勾选 `Publish`；或 Granular Access Token 对该包授予 `Read and write`）。
+- **`NPM_TOKEN`**：具有发布权限的 npm token。**若 npm 账号开启了两步验证（2FA），必须用 Classic「Automation」类型令牌**（npmjs.com → Access Tokens → Generate New Token → 选 **Automation**）。
+  - ⚠️ 默认的 Classic「Publish / auth-and-writes」令牌在 2FA 开启时会导致 CI 发布报 `code EOTP`（要求一次性密码，CI 无法输入）而失败；
+  - ⚠️ Granular Access Token **不能用于发布**（仅读），同样不行。
+  - 务必选 **Automation** 类型，才能免 OTP 从 CI 发布。
 
-> ⚠️ **npm scope 归属提醒**：包名是 `@reverse-skill/dsh-reverse-skill`，作用域 `@reverse-skill` 必须由你（或 reverse-skill 组织）在 npm 上拥有，否则 `npm publish` 会报 403 无权限。若你个人没有该 scope，请先把 `package.json` 里的 `name` 改成你自己的 scope（例如 `@dhicoc/dsh-reverse-skill`）再发布——CI 直接读取 `package.json` 的 `name`，无需改 workflow。
+> ⚠️ **npm scope 归属提醒**：包名是 `@dhicoc/dsh-reverse-skill`，作用域 `@dhicoc` 必须由你在 npm 上拥有，否则 `npm publish` 会报 403 无权限。若你没有该 scope，请先把 `package.json` 里的 `name` 改成你自己的 scope 再发布——CI 直接读取 `package.json` 的 `name`，无需改 workflow。
 
 > 想做 npm provenance（发布来源证明）的话，可给 job 加 `permissions: { id-token: write }` 并在 `npm publish` 加 `--provenance`，并在 npm 配置 trusted publisher；非必须。
 
