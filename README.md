@@ -122,24 +122,6 @@ skills:
 - **MCP 工具（如 burp-mcp）需另行配置**：技能正文里引用的外部 MCP server 不在本插件范围内，请按 dsh 的 `mcp.servers` 自行接入。
 - **文档链接已重写**：正文内相对链接已改为 `../`（及 CTF 相关为 `../../CTF-Sandbox-Orchestrator/`），以适配 dsh 扁平挂载路径。
 
----
-
-## 发布（GitHub Actions 自动 npm publish）
-
-本仓库自带 `.github/workflows/publish.yml`：在 GitHub 上 **创建 Release（published）** 或 **推送 `v*` tag**（如 `v1.0.2`）即自动 `npm install` + `npm publish --access public`。
-
-发布前需在本仓库 **Settings → Secrets and variables → Actions** 里配置一个仓库密钥：
-
-- **`NPM_TOKEN`**：具有发布权限的 npm token。**若 npm 账号开启了两步验证（2FA），必须用 Classic「Automation」类型令牌**（npmjs.com → Access Tokens → Generate New Token → 选 **Automation**）。
-  - ⚠️ 默认的 Classic「Publish / auth-and-writes」令牌在 2FA 开启时会导致 CI 发布报 `code EOTP`（要求一次性密码，CI 无法输入）而失败；
-  - ⚠️ Granular Access Token **不能用于发布**（仅读），同样不行。
-  - 务必选 **Automation** 类型，才能免 OTP 从 CI 发布。
-
-> ⚠️ **npm scope 归属提醒**：包名是 `@dhicoc/dsh-reverse-skill`，作用域 `@dhicoc` 必须由你在 npm 上拥有，否则 `npm publish` 会报 403 无权限。若你没有该 scope，请先把 `package.json` 里的 `name` 改成你自己的 scope 再发布——CI 直接读取 `package.json` 的 `name`，无需改 workflow。
-
-> 想做 npm provenance（发布来源证明）的话，可给 job 加 `permissions: { id-token: write }` 并在 `npm publish` 加 `--provenance`，并在 npm 配置 trusted publisher；非必须。
-
----
 
 ## License
 
