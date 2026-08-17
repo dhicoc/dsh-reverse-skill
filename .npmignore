@@ -9,4 +9,3 @@ port.py
 .gitignore
 node_modules
 debug*.mjs
-smoke.mjs

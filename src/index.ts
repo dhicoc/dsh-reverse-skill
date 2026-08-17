@@ -34,9 +34,9 @@ const PROVIDER_NAME = 'reverse-skill'
 
 /** Minimal YAML-frontmatter reader — enough for name / description / user-invocable. */
 function parseFrontmatter(text: string): { fm: Record<string, string>; body: string } {
-  // Normalize CRLF -> LF so the delimiter search and line regex are consistent
-  // across files checked out with Windows line endings.
-  const src = text.replace(/\r\n/g, '\n')
+  // Strip an optional UTF-8 BOM and normalize CRLF -> LF so the delimiter search
+  // and line regex are consistent across editor encodings and Windows checkouts.
+  const src = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n')
   if (!src.startsWith('---')) return { fm: {}, body: text }
   const end = src.indexOf('\n---', 3)
   if (end === -1) return { fm: {}, body: text }

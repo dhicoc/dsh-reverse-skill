@@ -31,6 +31,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Verify bundled skill provider
+        run: npm test
+
       - name: Publish to npm
         run: npm publish --access public
         env:
