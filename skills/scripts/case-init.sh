@@ -9,6 +9,8 @@ set -euo pipefail
 HINT=""
 CASE_NAME=""
 PACKAGE_ROOT=""
+PROJECT_ROOT=""
+PACKAGE_ROOT_BOUND=0
 AUTH_STATUS=""
 AUTH_GRANTED=0
 AUTH_BASIS="unknown"
@@ -23,7 +25,8 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -Hint|--hint) HINT="${2:-}"; shift 2 ;;
     -CaseName|--case-name) CASE_NAME="${2:-}"; shift 2 ;;
-    -PackageRoot|--package-root) PACKAGE_ROOT="${2:-}"; shift 2 ;;
+    -PackageRoot|--package-root) PACKAGE_ROOT="${2:-}"; PACKAGE_ROOT_BOUND=1; shift 2 ;;
+    -ProjectRoot|--project-root) PROJECT_ROOT="${2:-}"; shift 2 ;;
     -AuthStatus|--auth-status) AUTH_STATUS="${2:-}"; shift 2 ;;
     -AuthGranted|--auth-granted) AUTH_GRANTED=1; shift ;;
     -AuthBasis|--auth-basis) AUTH_BASIS="${2:-}"; shift 2 ;;
@@ -45,6 +48,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 if [[ -z "$PACKAGE_ROOT" ]]; then
   PACKAGE_ROOT="$(cd "$SKILLS_ROOT/.." && pwd)"
+fi
+if [[ -z "$PROJECT_ROOT" ]]; then
+  if [[ $PACKAGE_ROOT_BOUND -eq 1 ]]; then
+    PROJECT_ROOT="$PACKAGE_ROOT"
+  else
+    PROJECT_ROOT="$(pwd -P)"
+  fi
+fi
+
+if [[ -n "$SAMPLE" ]]; then
+  if [[ ! -f "$SAMPLE" ]]; then
+    echo "Local --sample file not found: $SAMPLE" >&2
+    exit 2
+  fi
+  sample_dir="$(cd "$(dirname "$SAMPLE")" && pwd -P)"
+  SAMPLE="$sample_dir/$(basename "$SAMPLE")"
 fi
 
 # Presets: reduce "AI refuses to work" friction for legitimate local/CTF work.
@@ -104,7 +123,7 @@ if [[ -n "$NETWORK_PROFILE" ]]; then
   esac
 fi
 
-CASE_ROOT="$PACKAGE_ROOT/work/$CASE_NAME"
+CASE_ROOT="$PROJECT_ROOT/work/$CASE_NAME"
 mkdir -p "$CASE_ROOT/evidence" "$CASE_ROOT/notes" "$CASE_ROOT/report"
 
 auth_status_resolved="pending"
@@ -165,7 +184,7 @@ primary="reverse-engineering/SKILL.md"
 primary_id="R0"
 if [[ -f "$SCRIPT_DIR/master-route.sh" ]]; then
   set +e
-  bash "$SCRIPT_DIR/master-route.sh" --hint "$HINT" --out-dir "$ROUTE_TMP" >/dev/null 2>&1
+  bash "$SCRIPT_DIR/master-route.sh" --hint "$HINT" --project-root "$PROJECT_ROOT" --out-dir "$ROUTE_TMP" >/dev/null 2>&1
   set -e
   if [[ -f "$ROUTE_TMP/route-scope.md" ]]; then
     rt="$(cat "$ROUTE_TMP/route-scope.md")"
@@ -215,6 +234,7 @@ cat > "$CASE_ROOT/scope.md" <<EOF
 - case_id: $CASE_NAME
 - created: $created
 - operator: local
+- project_root: $PROJECT_ROOT
 - primary_skill: $primary
 - primary_id: $primary_id
 - lead_role: lead

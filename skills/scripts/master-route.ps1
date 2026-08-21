@@ -17,7 +17,7 @@ $scriptDir = $PSScriptRoot
 if (-not $scriptDir) { $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path }
 $skillsRoot = Split-Path -Parent $scriptDir
 $packageRoot = Split-Path -Parent $skillsRoot
-$configPath = Join-Path $skillsRoot 'config\routing.json'
+$configPath = Join-Path $skillsRoot 'config/routing.json'
 
 # --- 读取路由配置（单一事实源） ---
 if (-not (Test-Path -LiteralPath $configPath)) {
@@ -141,7 +141,8 @@ $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine('# reverse-skill Master route (PRIMARY)')
 [void]$sb.AppendLine(("- created: {0}" -f (Get-Date -Format 'o')))
 [void]$sb.AppendLine(("- package: reverse-skill"))
-[void]$sb.AppendLine(("- hint: {0}" -f $Hint))
+$hintOneLine = (($Hint -replace '[\r\n]+', ' ').Trim())
+[void]$sb.AppendLine(("- hint: {0}" -f $hintOneLine))
 [void]$sb.AppendLine(("- primary: {0}" -f $primary))
 [void]$sb.AppendLine(("- primary_label: {0}" -f $primaryLabel))
 [void]$sb.AppendLine(("- primary_skill: skills/{0}" -f $primaryPath))

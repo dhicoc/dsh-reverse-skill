@@ -193,6 +193,14 @@
 
 ## 4. Synthesis（IOC / 攻击链 / 报告）
 
+### Decision quality overlay (Issue #77)
+
+Before closing Synthesis, apply [analysis-decision-framework.md](../../ops/analysis-decision-framework.md) **P0 checklist**: R41 grounded claims, R4* validated sufficiency, R1 confidence->dynamic, R2 hypothesis exit, R43 deadlock replan (under feasibility gate), R8/R23 no default malice/IOC. Multi-module -> R50; anti-analysis effort -> R51 + A-T cookbook.
+
+Blindspots (Rust/Go/VMP/injection/OLE/PDF/agent-meta): [analysis-blindspot-cookbook.md](../../ops/analysis-blindspot-cookbook.md) R52-R81 — detection-oriented; not a parallel master flow.
+
+
+
 ```text
 □ Finding：算法/校验逻辑/可利用点 / 行为结论
 □ Path：callflow 或 solve 步骤挂 E-*

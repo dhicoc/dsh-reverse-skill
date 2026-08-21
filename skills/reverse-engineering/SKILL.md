@@ -1,13 +1,12 @@
 ---
-
 name: reverse-engineering
 description: Provides reverse engineering techniques. Use when the main job is to understand how a compiled, obfuscated, packed, or virtualized target works before exploiting or solving it, including binaries, APKs, WASM, firmware, custom VMs, bytecode, malware-like loaders, and anti-debug or anti-analysis logic. Do not use it when the vulnerability is already understood and the remaining task is exploitation; use pwn instead. Do not use it for pure web workflows, log or disk forensics, or standalone crypto problems unless reversing the implementation is the real blocker.
 license: MIT
 compatibility: Requires a filesystem-based code agent or CLI with shell access, Python 3, and internet access for tool installation.
 allowed-tools: Bash Read Write Edit Glob Grep Task WebFetch WebSearch
-user-invocable: false
+metadata:
+  user-invocable: "false"
 ---
-
 
 # Reverse Engineering
 
@@ -86,13 +85,11 @@ r2pm -ci r2ghidra   # Native Ghidra decompiler for radare2
 
 ## When to Pivot
 
-- If you already understand the binary and now need heap, ROP, or kernel exploitation, switch to `/ctf-pwn`.
-- If the challenge is really about recovering deleted files, PCAP data, or disk artifacts, switch to `/ctf-forensics`.
-- If the target is a web app and you are only reversing a small client-side helper script, switch to `/ctf-web`.
-- If the binary implements a machine learning model and the challenge is about model attacks or adversarial inputs, switch to `/ctf-ai-ml`.
-- If the reversed binary's core logic is a cryptographic algorithm or math problem, switch to `/ctf-crypto`.
-- If the binary is a real malware sample with C2, packing, or evasion behavior, switch to `/ctf-malware`.
-- If the challenge is a toy VM, encoding puzzle, or pyjail rather than a real binary, switch to `/ctf-misc`.
+- Heap / ROP / kernel exploit after the binary is understood → `pwn-chain/`
+- Deleted files / PCAP / disk artifacts → `digital-forensics/`
+- Web app with a small client helper → `js-reverse/`
+- Real malware / C2 / packing → `malware-analysis/`
+- Multi-type CTF contest packaging → `ctf-sandbox/` (sidecar orchestrator)
 
 ## Problem-Solving Workflow
 

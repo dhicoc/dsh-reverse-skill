@@ -683,7 +683,17 @@
                   },
                   {
                       "hint":  "ctf 逆向题",
-                      "expect":  "R0",
+                      "expect":  "R41",
+                      "quick":  false
+                  },
+                  {
+                      "hint":  "awd 靶场",
+                      "expect":  "R41",
+                      "quick":  true
+                  },
+                  {
+                      "hint":  "CTF pwn 栈溢出",
+                      "expect":  "R17",
                       "quick":  false
                   },
                   {

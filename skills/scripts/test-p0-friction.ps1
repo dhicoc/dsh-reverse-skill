@@ -13,6 +13,9 @@ $scriptDir = $PSScriptRoot
 $skillsRoot = Split-Path -Parent $scriptDir
 if (-not $PackageRoot) { $PackageRoot = Split-Path -Parent $skillsRoot }
 
+. (Join-Path (Join-Path $scriptDir 'lib') 'HostRuntime.ps1')
+$HostExe = Resolve-ReverseHostExe
+
 if ([string]::IsNullOrWhiteSpace($ScratchDir)) {
     $tmpBase = if ($env:TEMP) { $env:TEMP } else { [System.IO.Path]::GetTempPath() }
     $ScratchDir = Join-Path $tmpBase ('rs-p0-test-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
@@ -29,7 +32,7 @@ Write-Host "PackageRoot=$PackageRoot"
 # 1) smoke entrypoint
 $smokeLog = Join-Path $ScratchDir 'smoke.log'
 $smoke = Join-Path $scriptDir 'smoke.ps1'
-& powershell -NoProfile -ExecutionPolicy Bypass -File $smoke -LogDir (Join-Path $ScratchDir 'smoke-logs') -PackageRoot $PackageRoot 2>&1 |
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $smoke -LogDir (Join-Path $ScratchDir 'smoke-logs') -PackageRoot $PackageRoot 2>&1 |
     Tee-Object -FilePath $smokeLog | Out-Null
 $smokeExit = $LASTEXITCODE
 if ($smokeExit -eq 0) { Ok 'smoke exit 0' } else { Bad "smoke exit $smokeExit" }
@@ -41,7 +44,7 @@ if ($smokeText -match 'route apk|parse master-route|parse case-init') { Ok 'smok
 $caseName = 'p0-ready-' + (Get-Date -Format 'HHmmss')
 $ciLog = Join-Path $ScratchDir 'case-init.log'
 $ci = Join-Path $scriptDir 'case-init.ps1'
-& powershell -NoProfile -ExecutionPolicy Bypass -File $ci `
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $ci `
     -Hint 'web pentest nmap nuclei' `
     -CaseName $caseName `
     -PackageRoot $PackageRoot `
@@ -63,7 +66,7 @@ else {
 
 # 3) bare case-init still pending defaults
 $bareName = 'p0-bare-' + (Get-Date -Format 'HHmmss')
-& powershell -NoProfile -ExecutionPolicy Bypass -File $ci -CaseName $bareName -PackageRoot $PackageRoot 2>&1 | Out-Null
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $ci -CaseName $bareName -PackageRoot $PackageRoot 2>&1 | Out-Null
 $bareScope = Get-Content (Join-Path $PackageRoot ("work\{0}\scope.md" -f $bareName)) -Raw -Encoding UTF8
 if ($bareScope -match 'status:\s*pending' -and $bareScope -match 'ready_for_act:\s*false') {
     Ok 'bare case-init still pending/offline defaults'
@@ -78,7 +81,7 @@ New-Item -ItemType Directory -Path (Join-Path $evCase 'evidence') -Force | Out-N
 'placeholder' | Set-Content (Join-Path $evCase 'scope.md') -Encoding UTF8
 $ae = Join-Path $scriptDir 'append-evidence.ps1'
 $aeLog = Join-Path $ScratchDir 'append-evidence.log'
-& powershell -NoProfile -ExecutionPolicy Bypass -File $ae `
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $ae `
     -CaseRoot $evCase `
     -Id 'E-001' `
     -Title 'Smoke evidence item' `
@@ -99,7 +102,7 @@ else {
 
 $artifact = Join-Path $evCase 'evidence\fixture.bin'
 [System.IO.File]::WriteAllBytes($artifact, [System.Text.Encoding]::UTF8.GetBytes('case artifact'))
-& powershell -NoProfile -ExecutionPolicy Bypass -File $ae `
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $ae `
     -CaseRoot $evCase `
     -Id 'E-002' `
     -Title 'Hashed evidence item' `
@@ -128,7 +131,7 @@ if ($rt -match 'append-evidence') { Ok 'recon-pipeline Evidence append' } else {
 
 # 7) verify alone
 $vLog = Join-Path $ScratchDir 'verify.log'
-& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $scriptDir 'verify-routing-coherence.ps1') 2>&1 |
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $scriptDir 'verify-routing-coherence.ps1') 2>&1 |
     Tee-Object -FilePath $vLog | Out-Null
 if ($LASTEXITCODE -eq 0) { Ok 'verify-routing-coherence exit 0' } else { Bad "verify exit $LASTEXITCODE" }
 
@@ -140,27 +143,27 @@ $zhCases = @(
     @{ Hint = '前端签名 JS逆向'; Expect = 'js-reverse' }
 )
 foreach ($zc in $zhCases) {
-    $raw = & powershell -NoProfile -ExecutionPolicy Bypass -File $mr -Hint $zc.Hint 2>&1 | Out-String
+    $raw = & $HostExe -NoProfile -ExecutionPolicy Bypass -File $mr -Hint $zc.Hint 2>&1 | Out-String
     if ($raw -match [regex]::Escape($zc.Expect)) { Ok ("zh route -> {0}" -f $zc.Expect) }
     else { Bad ("zh route miss {0}: {1}" -f $zc.Expect, ($raw.Substring(0, [Math]::Min(120, $raw.Length)))) }
 }
 
-# 9) case-guard: ready case exits 0; bare pending exits 2
+# 9) case-guard: ready case exits 0; bare pending exits 2 even with -Force
 $cg = Join-Path $scriptDir 'case-guard.ps1'
-& powershell -NoProfile -ExecutionPolicy Bypass -File $cg -CaseRoot $caseRoot 2>&1 | Out-Null
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $cg -CaseRoot $caseRoot 2>&1 | Out-Null
 if ($LASTEXITCODE -eq 0) { Ok 'case-guard ready exit 0' } else { Bad "case-guard ready exit $LASTEXITCODE" }
 $bareRoot = Join-Path $PackageRoot ("work\{0}" -f $bareName)
-& powershell -NoProfile -ExecutionPolicy Bypass -File $cg -CaseRoot $bareRoot 2>&1 | Out-Null
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $cg -CaseRoot $bareRoot 2>&1 | Out-Null
 if ($LASTEXITCODE -eq 2) { Ok 'case-guard pending exit 2' } else { Bad "case-guard pending expected 2 got $LASTEXITCODE" }
-& powershell -NoProfile -ExecutionPolicy Bypass -File $cg -CaseRoot $bareRoot -Force 2>&1 | Out-Null
-if ($LASTEXITCODE -eq 0) { Ok 'case-guard -Force exit 0' } else { Bad "case-guard -Force exit $LASTEXITCODE" }
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $cg -CaseRoot $bareRoot -Force 2>&1 | Out-Null
+if ($LASTEXITCODE -eq 2) { Ok 'case-guard -Force cannot bypass hard gate' } else { Bad "case-guard -Force expected 2 got $LASTEXITCODE" }
 
 # 10) AuthGranted must not be clobbered by junk AuthStatus / multi-asset lab init
 # Note: -ProjectRoot is passed explicitly to prevent the -InScopeAssets array
 # from being flattened by powershell -File and binding its second element to the
 # -ProjectRoot positional parameter slot.
 $labName = 'p0-lab-' + (Get-Date -Format 'HHmmss')
-& powershell -NoProfile -ExecutionPolicy Bypass -File $ci `
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $ci `
     -Hint 'gin juice lab pentest' `
     -CaseName $labName `
     -PackageRoot $PackageRoot `
@@ -181,7 +184,7 @@ if ($labScope -match 'ginandjuice\.shop') { Ok 'lab in_scope has target' } else 
 
 # 10b) garbage AuthStatus must not override AuthGranted
 $junkName = 'p0-junk-' + (Get-Date -Format 'HHmmss')
-& powershell -NoProfile -ExecutionPolicy Bypass -File $ci `
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $ci `
     -Hint 'web pentest lab' `
     -CaseName $junkName `
     -PackageRoot $PackageRoot `
@@ -205,7 +208,7 @@ $excerptPayload = '"XML parsing error" / Entities are not allowed'
 $excerptFile = Join-Path $ScratchDir 'excerpt-payload.txt'
 # UTF-8 no BOM for portability
 [System.IO.File]::WriteAllText($excerptFile, $excerptPayload, (New-Object System.Text.UTF8Encoding $false))
-& powershell -NoProfile -ExecutionPolicy Bypass -File $ae `
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $ae `
     -CaseRoot $ae2 `
     -Id 'E-XML' `
     -Title 'Stock API error sample' `
@@ -241,7 +244,7 @@ New-Item -ItemType Directory -Path (Join-Path $ae3 'evidence') -Force | Out-Null
 'x' | Set-Content (Join-Path $ae3 'scope.md') -Encoding UTF8
 $brokenLog = Join-Path $ScratchDir 'append-evidence-broken.log'
 # Intentionally unquoted multi-word after -RawExcerpt to simulate nested -File quote loss
-cmd /c "powershell -NoProfile -ExecutionPolicy Bypass -File `"$ae`" -CaseRoot `"$ae3`" -Id E-BAD -Title `"T`" -ReproCommand `"curl -sI https://example/`" -RawExcerpt XML parsing error / Entities -Severity info -Status observed >`"$brokenLog`" 2>&1"
+cmd /c "`"$HostExe`" -NoProfile -ExecutionPolicy Bypass -File `"$ae`" -CaseRoot `"$ae3`" -Id E-BAD -Title `"T`" -ReproCommand `"curl -sI https://example/`" -RawExcerpt XML parsing error / Entities -Severity info -Status observed >`"$brokenLog`" 2>&1"
 if ($LASTEXITCODE -ne 0) { Ok 'broken multi-word RawExcerpt fails loud' } else { Bad 'broken multi-word RawExcerpt should not exit 0' }
 
 # 12) client-side + recon playbook topics
@@ -262,7 +265,7 @@ if (Test-Path $recon) {
 
 # 13) ReadyForAct alone must NOT mark ready without auth/assets
 $forceName = 'p0-forceonly-' + (Get-Date -Format 'HHmmss')
-& powershell -NoProfile -ExecutionPolicy Bypass -File $ci `
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $ci `
     -CaseName $forceName -PackageRoot $PackageRoot -ReadyForAct 2>&1 | Out-Null
 $forceScope = Get-Content (Join-Path $PackageRoot ("work\{0}\scope.md" -f $forceName)) -Raw -Encoding UTF8
 if ($forceScope -match 'ready_for_act:\s*false' -and $forceScope -match 'status:\s*pending') {
@@ -290,7 +293,7 @@ $ghostScope = @'
 - https://example.com/docs-only-not-asset
 '@
 Set-Content (Join-Path $ghostCase 'scope.md') $ghostScope -Encoding UTF8
-& powershell -NoProfile -ExecutionPolicy Bypass -File $cg -CaseRoot $ghostCase 2>&1 | Out-Null
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $cg -CaseRoot $ghostCase 2>&1 | Out-Null
 if ($LASTEXITCODE -eq 2) { Ok 'case-guard rejects empty assets despite ops_refs URLs' }
 else { Bad "case-guard should fail empty assets; exit=$LASTEXITCODE" }
 
@@ -313,7 +316,7 @@ $sectionScope = @'
 - ready_for_act: true
 '@
 Set-Content (Join-Path $sectionCase 'scope.md') $sectionScope -Encoding UTF8
-& powershell -NoProfile -ExecutionPolicy Bypass -File $cg -CaseRoot $sectionCase 2>&1 | Out-Null
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $cg -CaseRoot $sectionCase 2>&1 | Out-Null
 if ($LASTEXITCODE -eq 2) { Ok 'case-guard scopes auth/signoff fields to contract sections' }
 else { Bad "case-guard accepted forged fields from notes; exit=$LASTEXITCODE" }
 
@@ -332,12 +335,12 @@ $networkScope = @'
 - ready_for_act: true
 '@
 Set-Content (Join-Path $networkCase 'scope.md') $networkScope -Encoding UTF8
-& powershell -NoProfile -ExecutionPolicy Bypass -File $cg -CaseRoot $networkCase 2>&1 | Out-Null
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $cg -CaseRoot $networkCase 2>&1 | Out-Null
 if ($LASTEXITCODE -eq 2) { Ok 'case-guard rejects unsupported network mode' }
 else { Bad "case-guard accepted unsupported network mode; exit=$LASTEXITCODE" }
 
 $invalidNetworkName = 'p0-invalid-network-' + (Get-Date -Format 'HHmmss')
-$invalidNetworkProcess = Start-Process -FilePath 'powershell.exe' -ArgumentList @(
+$invalidNetworkProcess = Start-Process -FilePath $HostExe -ArgumentList @(
     '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ci,
     '-Hint', 'authorized web review',
     '-CaseName', $invalidNetworkName,
@@ -358,7 +361,7 @@ $invalidCaseNames = @('..\case-escape', '../case-escape', 'case/name', 'case:nam
 $workRoot = Join-Path $PackageRoot 'work'
 foreach ($invalidCaseName in $invalidCaseNames) {
     $beforeCases = @(Get-ChildItem -LiteralPath $workRoot -Force -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name)
-    $process = Start-Process -FilePath 'powershell.exe' -ArgumentList @(
+    $process = Start-Process -FilePath $HostExe -ArgumentList @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ci,
         '-CaseName', $invalidCaseName, '-PackageRoot', $PackageRoot
     ) -Wait -PassThru -NoNewWindow

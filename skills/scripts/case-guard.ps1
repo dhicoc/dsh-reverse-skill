@@ -2,7 +2,7 @@
 # Lightweight scope gate before ACT. Exit 0 = ok, 2 = not ready, 1 = usage/error.
 # Usage:
 #   powershell -File skills/scripts/case-guard.ps1 -CaseRoot work\my-case
-#   powershell -File skills/scripts/case-guard.ps1 -CaseRoot work\my-case -Force   # warn but exit 0
+#   powershell -File skills/scripts/case-guard.ps1 -CaseRoot work\my-case -Force   # compatibility flag; never bypasses scope hard gates
 param(
     [Parameter(Mandatory = $true)]
     [string] $CaseRoot,
@@ -94,9 +94,8 @@ Write-Host ("CASE-GUARD NOT READY: {0}" -f $CaseRoot) -ForegroundColor Yellow
 foreach ($i in $issues) { Write-Host (" - {0}" -f $i) -ForegroundColor Yellow }
 
 if ($Force) {
-    Write-Host 'CASE-GUARD: -Force set; continuing with warnings only.' -ForegroundColor Yellow
-    exit 0
+    Write-Host 'CASE-GUARD: -Force does not bypass scope hard gates.' -ForegroundColor Yellow
 }
 
-Write-Host 'Fix scope (or re-run case-init -AuthGranted -TargetUrl ...) or pass -Force.' -ForegroundColor Yellow
+Write-Host 'Fix scope (or re-run case-init -AuthGranted -TargetUrl ...).' -ForegroundColor Yellow
 exit 2

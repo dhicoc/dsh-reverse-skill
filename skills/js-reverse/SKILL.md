@@ -31,7 +31,7 @@ description: 在使用 js-reverse-mcp 做前端 JavaScript 逆向时使用，适
 
 如果当前任务明确提到 `jshookmcp`、`JS hook`、`CDP`、浏览器断点、网络拦截、SourceMap 或 AST 去混淆，也仍然走本 skill；只是把底层 MCP 面切到 `jshookmcp`，而不是把它当成一个新的总入口。
 
-前提条件：`jshookmcp` 不是本地裸命令工具，而是一个要先下载/注册/启用的 MCP server。只有在 Claude MCP 配置里接入并启用后，相关工具面才真的可调用。
+前提条件：`jshookmcp` 不是本地裸命令工具，而是一个要先下载、显式注册并启用的 MCP server。只有在所选客户端（Claude、Codex 等）的 MCP 配置里接入并启用后，相关工具面才真的可调用。
 
 常用映射：
 
@@ -180,29 +180,30 @@ description: 在使用 js-reverse-mcp 做前端 JavaScript 逆向时使用，适
 
 ## 按需自举（On-Demand Bootstrap）
 
-本 skill 依赖的 MCP 能力可通过统一自举系统自动注册。
+本 skill 依赖的 MCP 能力可通过统一自举系统安装；MCP 客户端注册必须显式选择目标，默认不会写任何客户端全局配置。
 
 ### 自动化能力边界
 
 | 能力 | 可自动注册 | 方式 | 说明 |
 |------|-----------|------|------|
-| jshookmcp | ✓ | npm-mcp（npx 启动） | 自动写入 Claude MCP 配置 |
-| anything-analyzer | ✓ | local-http-mcp | 自动注册 + 可自动启动服务 |
+| jshookmcp | ✓ | npm-mcp（npx 启动） | 显式选择 Claude / Codex / Both 后注册 |
+| anything-analyzer | ✓ | local-http-mcp | 可自动启动服务；客户端注册须显式选择 |
 | Node.js | ✓ | winget 安装 | 运行时依赖 |
 
 ### 自举方式
 
 ```powershell
-# 注册 jshookmcp 到 MCP 配置
-powershell -File "<skill-root>\scripts\bootstrap-reverse.ps1" -Capability @('jshookmcp')
+# 安装并注册 jshookmcp；Codex 可替换为 Claude 或 Both
+powershell -File "<skill-root>\scripts\bootstrap-reverse.ps1" -Capability @('jshookmcp') -McpHostTarget Codex
 
 # 注册并启动 anything-analyzer
-powershell -File "<skill-root>\scripts\bootstrap-reverse.ps1" -Capability @('anything-analyzer') -StartServices
+powershell -File "<skill-root>\scripts\bootstrap-reverse.ps1" -Capability @('anything-analyzer') -StartServices -McpHostTarget Codex
 ```
 
 ### 注意事项
 
 - `jshookmcp` 注册后仍需在 AI 客户端中**启用**该 MCP server 才能调用
+- 不传 `-McpHostTarget` 时只安装/准备能力并返回 registration-required，不修改 Claude 或 Codex 配置
 - `anything-analyzer` 需要 pnpm 和项目源码，bootstrap 会自动 clone 并安装依赖
 - 如果 Node.js 未安装，bootstrap 会先通过 winget 安装 Node.js 22
 

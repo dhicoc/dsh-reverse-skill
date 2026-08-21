@@ -1,7 +1,7 @@
 # IDA Pro MCP 工具速查
 
-> 72 个 MCP 工具按功能分类，附常用参数和典型用法。
-> 服务器名：`idapro`，工具前缀：`idapro_*`，HTTP 模式运行。
+> ida-pro-mcp 2.x 工具按功能分类，附常用参数和典型用法。
+> 服务器名：`idapro`，工具前缀：`idapro_*`，HTTP 模式运行。工具数随版本变化（约 66，含 `py_eval`）。
 
 ---
 
@@ -10,9 +10,9 @@
 ### 服务器启动
 
 ```powershell
-# 启动 MCP HTTP 服务器（后台静默）
+# 启动 MCP HTTP 服务器（后台静默；健康则 OK:<n>:reuse）
 powershell -File "scripts/start.ps1"
-# 输出 OK:72 表示就绪
+# 输出 OK:<工具数> 表示就绪（约 66，含 py_eval）
 
 # 打开目标文件（绕过 schema 校验）
 powershell -File "scripts/open.ps1" -Path "C:\target.exe"
@@ -29,12 +29,12 @@ powershell -File "scripts/open.ps1" -Path "C:\huge.sys" -NoAutoAnalysis
 
 | 工具 | 用途 | 示例 |
 |------|------|------|
-| `idapro_idalib_list()` | 列出所有 session | — |
-| `idapro_idalib_current()` | 当前绑定的 session | — |
-| `idapro_idalib_switch(session_id)` | 切换 session | 多文件对比时 |
-| `idapro_idalib_close(session_id)` | 关闭 session | 释放资源 |
-| `idapro_idalib_save(path)` | 保存数据库 | 保存分析进度 |
-| `idapro_idalib_health(session_id)` | 检查 worker 状态 | 排查卡死 |
+| `idapro_idb_list()` / HTTP `idb_list` | 列出所有 session | — |
+| `idapro_idb_open()` / HTTP `idb_open` | 打开数据库（优先用 `open.ps1`） | 大文件走脚本 |
+| `idapro_idb_save(path)` / HTTP `idb_save` | 保存数据库 | 保存分析进度 |
+| `idapro_idb_current()` | 当前绑定的 session（若版本提供） | — |
+| `idapro_idb_switch(session_id)` | 切换 session | 多文件对比时 |
+| `idapro_idb_close(session_id)` | 关闭 session | 释放资源 |
 | `idapro_server_health()` | 服务器健康检查 | — |
 | `idapro_server_warmup()` | 预热子系统 | 首次使用前 |
 
@@ -508,7 +508,7 @@ idapro_py_eval(code="import ida_funcs; f=ida_funcs.get_func(0x401000); print(f.s
 |------|------|------|
 | "No database bound" | 没有打开文件 | 执行 `open.ps1` |
 | "Failed to open database" | 旧库被锁 | `open.ps1` 自动降级到 Temp |
-| schema 校验失败 | MCP 客户端 BUG | 用 `open.ps1` 代替 `idalib_open` |
+| schema 校验失败 | MCP 客户端 BUG | 用 `open.ps1` 代替 `idb_open` |
 | 工具超时 | 大文件分析中 | 加 `-TimeoutSeconds 600` |
 | "ERR:timeout" (start.ps1) | 服务器启动失败 | 检查 Python/idalib-mcp 安装 |
 | 进制转换错误 | 手动计算出错 | 用 `idapro_int_convert` |

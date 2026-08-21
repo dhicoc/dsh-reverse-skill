@@ -22,11 +22,12 @@ description: |
 
 ### 踩过的坑
 
-1. **`idalib_open` 不能通过 部分代码 AI 客户端 MCP 直接调用**
-   - 部分代码 AI 客户端 的 MCP 客户端对 `idalib_open` 的 output schema 校验有 BUG
+1. **`idb_open`（旧名 `idalib_open`）不要直接靠部分 AI 客户端 MCP 调用**
+   - 部分代码 AI 客户端 的 MCP 客户端对 open 类工具的 output schema 校验有 BUG
    - 报错：`Structured content does not match the tool's output schema`
    - **解决办法**：使用 `scripts/open.ps1` 脚本通过 HTTP API 直调，绕过 MCP 校验层
-   - 文件打开后，数据库绑定到共享上下文，其他所有 `idapro_*` 工具可直接使用
+   - 当前 ida-pro-mcp 2.x 工具名为 `idb_open` / `idb_list` / `idb_save`（不再是 `idalib_*`）
+   - 文件打开后返回 `session_id`（database），后续工具调用需带该 session
 
 2. **`C:\Windows\System32\` 文件无权限打开**
    - idalib 无法直接读取 System32 目录下的文件
@@ -52,10 +53,11 @@ description: |
    - 已安装最新 `main` 分支版本
 
 7. **idalib 超时留下孤儿 worker 进程锁文件**
-   - 第一次 `open.ps1` 超时后，idalib 的 python worker 子进程变成孤儿进程，咬着 `.id0`/`.id1`/`.nam` 不放
+   - 第一次 `open.ps1` 超时后，idalib 的 python worker 子进程可能变成孤儿，咬着 `.id0`/`.id1`/`.nam` 不放
    - 后续任何工具或手动拖入 IDA GUI 都会报"权限不足"
-   - **解决办法**：`start.ps1` 改用 `taskkill /F /T` 杀进程树，不再留孤儿
-   - **兜底**：`open.ps1` 加了自动降级，检测到旧库被锁自动复制到 Temp 并加 GUID 前缀
+   - **禁止** `taskkill /F /T` 杀进程树——`/T` 会把 GUI `ida.exe` 子进程一起干掉
+   - **解决办法**：`start.ps1` 只在端口无人监听、或 `tools/list` 快速返回但缺 `py_eval`（旧 supervisor）时替换 managed supervisor；RPC 超时且 13337 仍在听视为忙，不杀
+   - **兜底**：`open.ps1` 检测到旧库被锁自动复制到 Temp 并加 GUID 前缀
 
 8. **带自动分析打开看起来像卡死**
    - `idalib_open(run_auto_analysis=true)` 可能长时间不回包，但后端实际上仍在继续打开和分析
@@ -63,13 +65,19 @@ description: |
    - **当前解决办法**：`open.ps1` 新增 `-TimeoutSeconds`，并改为后台请求 + 前台轮询 + 定时进度输出
    - 轮询到会话已就绪时会提前返回 `OK:文件名:session_id`，超时则返回 `ERR:open_timeout_xxs`
 
+9. **HTTP MCP 会在登录后静默退出**
+   - Cursor/Claude 的 `type: http` 不会代为拉起进程；旧计划任务只在登录时跑一次
+   - `pythonw` 无控制台，崩溃时 Application 日志也是空的
+   - **解决办法**：`start.ps1` 默认健康则复用；`watchdog.ps1` 每分钟巡检；日志在 `%LOCALAPPDATA%\reverse-skill\ida-mcp\`
+   - 安装：`scripts/install-autostart.ps1`。Cursor 若启动时端口还没起来，仍需在 MCP 面板手动刷新一次
+
 ### 工作流程原则
 
 | 步骤 | 做什么 | 用什么 |
 |------|--------|--------|
 | 1 | 确保 HTTP 服务器在运行 | `scripts/start.ps1`（无参数） |
 | 2 | 打开目标二进制文件 | `scripts/open.ps1 -Path "xxx.exe"` |
-| 3 | 使用所有 72 个 MCP 工具 | 直接调用 `idapro_*` 工具 |
+| 3 | 使用 MCP 分析工具 | 直接调用 `idapro_*` / HTTP tools（约 65 个，视版本而定） |
 | 4 | 分析完毕 | 工具自动可用 |
 
 ## 脚本资源
@@ -78,8 +86,14 @@ description: |
 
 路径：`scripts/start.ps1`
 
-- 用 `taskkill /F /T` 杀旧进程树（连 worker 子进程一起清理）→ 后台启动 `idalib-mcp` → 等待就绪（最多 15 秒）
-- 成功输出 `OK:72`，失败输出 `ERR:timeout`
+- 自动解析 `IDADIR`（环境变量 / 便携版桌面路径 / 常见安装路径）
+- 优先用 IDA 自带 `Python314\python.exe -m ida_pro_mcp.idalib_supervisor`
+- 默认先探测 `http://127.0.0.1:13337/mcp`，健康则输出 `OK:<n>:reuse` 并退出
+- 13337 在听但 `tools/list` 超时 → `WARN:busy` / `OK:busy:reuse`，**不杀**（supervisor 单线程，开库时无法回包）
+- 仅在端口无人监听、或快速返回且缺 `py_eval` 时替换 managed supervisor；**永不杀 `ida.exe`，不用 `taskkill /T`**
+- GUI 占用 13337 时输出 `WARN:gui_busy` 并退出，不另起 supervisor
+- 成功输出 `OK:<工具数>`（当前约 66），失败输出 `ERR:timeout`
+- supervisor 日志：`%LOCALAPPDATA%\reverse-skill\ida-mcp\supervisor.log`
 - 服务器在后台运行，不阻塞对话
 
 **调用方式**：
@@ -87,11 +101,17 @@ description: |
 powershell -File "<skill-root>\ida-reverse\scripts\start.ps1"
 ```
 
+### watchdog.ps1 / install-autostart.ps1 — 保活
+
+- `watchdog.ps1`：探测 13337，健康则 `OK:<n>:reuse`，挂了才调用 `start.ps1`
+- `install-autostart.ps1`：注册计划任务 `reverse-skill-ida-mcp`（登录 + 每分钟）
+- 日志：`%LOCALAPPDATA%\reverse-skill\ida-mcp\watchdog.log`
+
 ### open.ps1 — 打开二进制文件
 
 路径：`scripts/open.ps1`
 
-- 通过 HTTP API 直调 `idalib_open`，绕过 MCP schema 校验
+- 通过 HTTP API 直调 `idb_open`，绕过 MCP schema 校验
 - 自动检测 System32 路径并复制到临时目录
 - 自动清理同名旧数据库文件（`.id0`/`.id1`/`.nam`/`.til`/`.i64`）
 - 旧库被锁时自动降级：复制到 Temp 加 GUID 前缀后打开，不报错
@@ -203,14 +223,11 @@ ERR:open_timeout_600s
 - `idapro_open_file(file_path)` — 在 GUI IDA 实例中打开文件
 - 调试器工具默认隐藏，可通过 URL 参数 `?ext=dbg` 启用
 
-### 会话管理
-- `idapro_idalib_open(input_path)` — ⚠️ 有 schema 校验 BUG，改用 `open.ps1` 脚本
-- `idapro_idalib_list()` — 列出所有 session
-- `idapro_idalib_current()` — 当前上下文绑定的 session
-- `idapro_idalib_switch(session_id)` — 切换到其他 session
-- `idapro_idalib_close(session_id)` — 关闭 session
-- `idapro_idalib_save(path)` — 保存数据库
-- `idapro_idalib_health(session_id)` — 检查 worker 健康状态
+### 会话管理（ida-pro-mcp 2.x）
+- `idapro_idb_open` / HTTP `idb_open` — ⚠️ 建议用 `open.ps1` 打开
+- `idapro_idb_list` / HTTP `idb_list` — 列出所有 session
+- `idapro_idb_save` / HTTP `idb_save` — 保存数据库
+- 多数分析工具需要 `database=<session_id>` 参数（open.ps1 输出的 session）
 
 ### 其他
 - `idapro_int_convert(inputs)` — 进制转换（**必须用这个，不要自己算进制！**）
@@ -222,18 +239,34 @@ ERR:open_timeout_600s
 ## 逆向分析完整工作流
 
 ### Step 1: 启动服务器
-确保 HTTP 服务在后台运行。
+
+**路径 A — Headless idalib（需要有效 license）**
 ```
 powershell -File "scripts/start.ps1"
 ```
-输出 `OK:72` 表示就绪。
+输出 `OK:<工具数>`（当前约 65）表示就绪。
+
+**路径 B — GUI + 插件（idalib license 失败或需要交互分析时）**
+```
+powershell -File "scripts/start-gui.ps1" -Path "C:\目标.exe"
+```
+或双击便携版 `Launch-IDA-Pro.cmd`，在 IDA 中打开样本。
+
+确认 Output 窗口出现 `[MCP] ... port=13337` 后，MCP 工具即可用。
+
+通用对接步骤见 `LOCAL-SETUP.md`。
 
 ### Step 2: 打开文件
+
+Headless：
 ```
 powershell -File "scripts/open.ps1" -Path "C:\目标.exe" -TimeoutSeconds 600
 ```
 输出 `OK:文件名:session_id` 表示成功（后带 `(temp copy)` 表示自动降级到临时副本）。
-若分析时间较长，会周期性输出 `INFO:opening:...`；若达到超时则输出 `ERR:open_timeout_xxs`。
+
+若出现 `ERR:idalib_license:...`，改用路径 B（GUI 模式），不要反复重试 open.ps1。
+
+GUI 模式：在 IDA 里直接 Open 样本即可，无需 open.ps1。
 
 ### Step 3: 全局概览（含导入表硬门）
 ```
@@ -346,7 +379,11 @@ ida-pro-mcp --config
 ### 前置条件
 
 - IDA Pro 已安装且 `IDADIR` 环境变量已设置（或脚本内默认路径正确）
-- Python 已安装（idalib-mcp 依赖 Python）
+- 推荐使用 IDA 自带 Python314 中的 `ida-pro-mcp`（便携版已内置）
+- 常见本机配置：
+  - User env `IDADIR` → IDA 安装目录（含 `ida.exe`）
+  - 可选 `~\Tools\bin\idalib-mcp.cmd` / `ida-pro-mcp.cmd` 包装器
+  - 客户端 MCP 服务器名只留 `idapro` → `http://127.0.0.1:13337/mcp`
 
 
 ## 任务完成自检（声称完成前 MUST 通过）

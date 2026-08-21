@@ -129,12 +129,11 @@ TOOLS=(
   "nuclei|pentest-tools|Template-based vulnerability scanner|nuclei|nuclei -version|"
   "binwalk|firmware-pentest|Firmware extraction and analysis|binwalk|binwalk --version|"
   "seclists|pentest-tools|Security wordlists|none|none|$HOME/tools/SecLists;/usr/share/seclists"
-  "jshookmcp|js-reverse|JS/CDP/Hook MCP runtime via npx|npx|npx --version|"
-  "reqable-mcp|pentest-tools|Reqable desktop MCP runtime via npx|npx|npx --version|"
+  "jshookmcp|js-reverse|JS/CDP/Hook MCP capability (requires registration + npx runtime)|none|none|"
+  "reqable-mcp|pentest-tools|Reqable MCP capability (requires registration + npx runtime)|none|none|"
   "jeb-pro|apk-reverse|Commercial Android/ARM decompiler (manual licensed install)|jeb,jeb_wincon|jeb --version|$HOME/tools/JEB/jeb;$HOME/JEB/jeb;/opt/jeb/jeb"
   "anything-analyzer|browser-automation|Browser/HTTP analyzer MCP project|none|none|$HOME/tools/anything-analyzer;$REPO_ROOT/../anything-analyzer"
   "burp-mcp-full|burp-mcp|Local Burp MCP extension and stdio bridge|none|none|$REPO_ROOT/burp-mcp-full/mcp-bridge.js"
-  "binwalk|firmware-pentest|Firmware extraction and analysis|binwalk|binwalk --version|"
   "yara|malware-analysis|Malware rule matching engine|yara|yara --version|"
   "pwntools|reverse-engineering|CTF pwn exploit development framework|pwn|pwn --version|"
 )
@@ -224,41 +223,40 @@ done
 } >> "$OUTPUT_MD"
 
 # --- Capability status view -------------------------------------------------
-# Parity with skills/scripts/refresh-tool-index.ps1 (the "能力状态视图" block).
-# Computed by parsing skills/scripts/bootstrap-manifest.json plus probing the
-# local MCP config and each declared servicePort. All logic is contained in the
-# Python heredoc below so this script keeps its existing bash dependencies.
+# Parity with skills/scripts/refresh-tool-index.ps1. Registration is discovered
+# across supported host adapters rather than assuming one default AI client.
 
 MANIFEST_PATH="$SCRIPT_DIR/bootstrap-manifest.json"
-MCP_CONFIG_PATH_FOR_CAP="${CLAUDE_MCP_CONFIG:-$HOME/.claude/mcp.json}"
+CLAUDE_MCP_CONFIG_PATH_FOR_CAP="${CLAUDE_MCP_CONFIG:-$HOME/.claude/mcp.json}"
+CODEX_MCP_CONFIG_PATH_FOR_CAP="${CODEX_CONFIG_PATH:-$HOME/.codex/config.toml}"
 CAP_RECORDS_TMP="$(mktemp)"
-# Replace earlier single-file trap with one that also cleans this capability tmp file.
 trap 'rm -f "$records_tmp" "$CAP_RECORDS_TMP"' EXIT
 
 if [[ -f "$MANIFEST_PATH" ]]; then
-  # Pass tool availability info (collected earlier) so the capability view can
-  # reflect the same "tool ready" judgement as the tool table above.
-  python3 - "$MANIFEST_PATH" "$MCP_CONFIG_PATH_FOR_CAP" "$records_tmp" "$CAP_RECORDS_TMP" <<'PY'
-import json, pathlib, socket, sys, urllib.request
+  python3 - "$MANIFEST_PATH" "$CLAUDE_MCP_CONFIG_PATH_FOR_CAP" "$CODEX_MCP_CONFIG_PATH_FOR_CAP" "$records_tmp" "$CAP_RECORDS_TMP" <<'PY'
+import json, pathlib, re, socket, sys, urllib.request
 
-manifest_path, mcp_config_path, tool_records_path, out_path = sys.argv[1:5]
+manifest_path, claude_config_path, codex_config_path, tool_records_path, out_path = sys.argv[1:6]
 
-# Load capability definitions
 try:
     manifest = json.loads(pathlib.Path(manifest_path).read_text(encoding='utf-8'))
 except Exception:
     manifest = {'capabilities': []}
 capabilities = manifest.get('capabilities', [])
 
-# Load currently registered MCP server names
 registered_names = set()
 try:
-    mcp_data = json.loads(pathlib.Path(mcp_config_path).read_text(encoding='utf-8'))
-    registered_names = set(mcp_data.get('mcpServers', {}).keys())
+    mcp_data = json.loads(pathlib.Path(claude_config_path).read_text(encoding='utf-8'))
+    registered_names.update(mcp_data.get('mcpServers', {}).keys())
+except Exception:
+    pass
+try:
+    codex_text = pathlib.Path(codex_config_path).read_text(encoding='utf-8')
+    pattern = re.compile(r'^\s*\[mcp_servers\.([^\].]+)\]\s*$', re.MULTILINE)
+    registered_names.update(pattern.findall(codex_text))
 except Exception:
     pass
 
-# Load tool availability from the table we already wrote (best-effort match by name)
 tool_available = {}
 try:
     with open(tool_records_path, encoding='utf-8') as f:
@@ -311,6 +309,7 @@ for cap in capabilities:
             mcp_http_verified = mcp_http_handshake(service_port)
 
     tool_ready = bool(tool_available.get(name, False))
+    runtime_ready = bool(tool_available.get('npx', False)) if bootstrap_kind == 'npm-mcp' else tool_ready
 
     if mcp_names:
         if verification_mode == 'service-and-registration':
@@ -318,7 +317,7 @@ for cap in capabilities:
         elif verification_mode == 'service-or-registration':
             ready = registered or service_online
         elif bootstrap_kind == 'npm-mcp':
-            ready = registered and tool_ready
+            ready = registered and runtime_ready
         else:
             ready = registered or tool_ready
     else:
@@ -327,6 +326,7 @@ for cap in capabilities:
     rows.append({
         'name': name,
         'tool_available': tool_ready,
+        'runtime_available': runtime_ready,
         'ready': ready,
         'mcp_registered': registered if mcp_names else None,
         'service_online': service_online if service_port else None,
@@ -339,7 +339,6 @@ with open(out_path, 'w', encoding='utf-8') as f:
     json.dump(rows, f, ensure_ascii=False)
 PY
 
-  # Append the markdown capability table (mirrors the headings used in the ps1 version)
   {
     echo ""
     echo "---"
@@ -353,9 +352,9 @@ PY
   python3 - "$CAP_RECORDS_TMP" "$OUTPUT_MD" <<'PY'
 import json, sys
 rows = json.loads(open(sys.argv[1], encoding='utf-8').read())
-def yn(v):  # True->✓, False->✗
+def yn(v):
     return '✓' if v else '✗'
-def opt(v):  # True->✓, False->—, None->—
+def opt(v):
     if v is True: return '✓'
     if v is False: return '—'
     return '—'
@@ -367,7 +366,7 @@ with open(sys.argv[2], 'a', encoding='utf-8') as out:
             f"{opt(r['mcp_http_verified'])} | {yn(r['can_auto_install'])} | "
             f"{r['bootstrap_kind'] or '—'} |\n"
         )
-    out.write("\n> ✓ = 是 | ✗ = 否 | — = 不适用或未检测\n\n")
+    out.write("\n> ✓ = 是 | ✗ = 否 | — = 不适用或未检测。npm-mcp 的 Ready 使用 MCP 注册状态 + npx runtime；npx 本身不会让某个 MCP capability 变成工具可用。\n\n")
 PY
 else
   CAP_RECORDS_TMP=""

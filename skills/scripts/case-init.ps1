@@ -4,6 +4,9 @@
 # Ready-to-act example:
 #   powershell -File skills/scripts/case-init.ps1 -Hint "web pentest" -CaseName my-case `
 #     -AuthGranted -TargetUrl "https://app.example/" -NetworkProfile authorized_target_only
+# Offline sample ready-to-act example:
+#   powershell -File skills/scripts/case-init.ps1 -Hint "offline apk" -CaseName my-sample `
+#     -Preset offline-sample -Sample ".\app.apk"
 param(
     [string] $Hint = '',
     [string] $CaseName = '',
@@ -15,6 +18,8 @@ param(
     [string] $AuthBasis = 'own_system',
     [string] $EvidenceOfAuth = '',
     [string] $TargetUrl = '',
+    [string] $Sample = '',
+    [string] $Preset = '',
     [string[]] $InScopeAssets = @(),
     [string] $NetworkProfile = '',
     [switch] $ReadyForAct
@@ -26,6 +31,8 @@ if (-not $scriptDir) { $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.P
 $skillsRoot = Split-Path -Parent $scriptDir
 if (-not $PackageRoot) { $PackageRoot = Split-Path -Parent $skillsRoot }
 . (Join-Path (Join-Path $scriptDir 'lib') 'WorkRoot.ps1')
+. (Join-Path (Join-Path $scriptDir 'lib') 'HostRuntime.ps1')
+$HostExe = Resolve-ReverseHostExe
 $requestedProjectRoot = if (-not [string]::IsNullOrWhiteSpace($ProjectRoot)) {
     $ProjectRoot
 } elseif ($PSBoundParameters.ContainsKey('PackageRoot')) {
@@ -34,6 +41,43 @@ $requestedProjectRoot = if (-not [string]::IsNullOrWhiteSpace($ProjectRoot)) {
     ''
 }
 $projectRoot = Resolve-ReverseProjectRoot -RequestedRoot $requestedProjectRoot
+
+if (-not [string]::IsNullOrWhiteSpace($Sample)) {
+    try {
+        $Sample = [System.IO.Path]::GetFullPath($Sample)
+    } catch {
+        throw "Invalid -Sample path '$Sample': $($_.Exception.Message)"
+    }
+    if (-not (Test-Path -LiteralPath $Sample -PathType Leaf)) {
+        throw "Local -Sample file not found: $Sample"
+    }
+}
+
+# Cross-platform case presets. Keep semantics aligned with case-init.sh.
+$presetNormalized = $Preset.Trim().ToLowerInvariant()
+if ($presetNormalized -in @('offline-sample', 'own-sample', 'local-sample')) {
+    $AuthGranted = $true
+    $AuthStatus = 'granted'
+    $AuthBasis = 'own_system'
+    if ([string]::IsNullOrWhiteSpace($NetworkProfile)) { $NetworkProfile = 'offline' }
+    if ([string]::IsNullOrWhiteSpace($EvidenceOfAuth)) {
+        $EvidenceOfAuth = 'preset:offline-sample (owner-operated local file)'
+    }
+} elseif ($presetNormalized -in @('ctf-public', 'ctf')) {
+    $AuthGranted = $true
+    $AuthStatus = 'granted'
+    $AuthBasis = 'ctf_public'
+    if ([string]::IsNullOrWhiteSpace($NetworkProfile)) { $NetworkProfile = 'authorized_target_only' }
+    if ([string]::IsNullOrWhiteSpace($EvidenceOfAuth)) { $EvidenceOfAuth = 'preset:ctf-public' }
+} elseif ($presetNormalized -in @('own-system', 'lab-only')) {
+    $AuthGranted = $true
+    $AuthStatus = 'granted'
+    $AuthBasis = 'own_system'
+    if ([string]::IsNullOrWhiteSpace($NetworkProfile)) { $NetworkProfile = 'lab_only' }
+    if ([string]::IsNullOrWhiteSpace($EvidenceOfAuth)) { $EvidenceOfAuth = 'preset:own-system/lab' }
+} elseif (-not [string]::IsNullOrWhiteSpace($Preset)) {
+    Write-Host ("WARN: unknown -Preset '{0}' (allowed: offline-sample|ctf-public|own-system)" -f $Preset) -ForegroundColor Yellow
+}
 
 if (-not $CaseName) {
     $slug = if ($Hint) {
@@ -90,6 +134,9 @@ $evidenceAuth = if (-not [string]::IsNullOrWhiteSpace($EvidenceOfAuth)) {
 
 $assets = New-Object System.Collections.Generic.List[string]
 if (-not [string]::IsNullOrWhiteSpace($TargetUrl)) { [void]$assets.Add($TargetUrl.Trim()) }
+if (-not [string]::IsNullOrWhiteSpace($Sample) -and -not $assets.Contains($Sample.Trim())) {
+    [void]$assets.Add($Sample.Trim())
+}
 foreach ($a in @($InScopeAssets)) {
     if (-not [string]::IsNullOrWhiteSpace($a) -and -not $assets.Contains($a.Trim())) {
         [void]$assets.Add($a.Trim())
@@ -103,8 +150,8 @@ if ($assets.Count -eq 0 -and $Hint -match 'https?://([^\s/]+)') {
 $networkMode = 'offline'
 if (-not [string]::IsNullOrWhiteSpace($NetworkProfile)) {
     $networkMode = $NetworkProfile.Trim()
-} elseif ($assets.Count -gt 0 -and $authStatusResolved -eq 'granted') {
-    # training labs / intentional vulns often use lab_only; default authorized_target_only
+} elseif ($assets.Count -gt 0 -and $authStatusResolved -eq 'granted' -and [string]::IsNullOrWhiteSpace($Sample)) {
+    # Authorized network targets default to target-only. Explicit local samples remain offline.
     $networkMode = 'authorized_target_only'
 }
 # normalize common aliases
@@ -122,19 +169,21 @@ if ($networkMode -notin $allowedNetworkModes) {
     throw "Invalid -NetworkProfile '$NetworkProfile'. Allowed: offline, lab_only, authorized_target_only, unrestricted_lab (aliases: lab, authorized, auth, offline_only)."
 }
 
-# ready_for_act requires auth granted + assets + non-offline network.
-# -ReadyForAct cannot skip auth (would bypass hard gate).
+# ready_for_act requires auth granted + assets. Network targets need a non-offline
+# profile; an explicit local sample is valid in offline mode. -ReadyForAct never
+# bypasses auth or scope.
 $ready = $false
 $netAllowsAct = ($networkMode -ne 'offline' -and -not [string]::IsNullOrWhiteSpace($networkMode))
-if ($authStatusResolved -eq 'granted' -and $assets.Count -gt 0 -and $netAllowsAct) {
+$offlineSampleReady = ($networkMode -eq 'offline' -and -not [string]::IsNullOrWhiteSpace($Sample) -and $assets.Count -gt 0)
+if ($authStatusResolved -eq 'granted' -and $assets.Count -gt 0 -and ($netAllowsAct -or $offlineSampleReady)) {
     $ready = $true
 } elseif ($ReadyForAct) {
     if ($authStatusResolved -ne 'granted') {
         Write-Host 'WARN: -ReadyForAct ignored because auth.status is not granted' -ForegroundColor Yellow
     } elseif ($assets.Count -eq 0) {
         Write-Host 'WARN: -ReadyForAct ignored because in_scope.assets is empty' -ForegroundColor Yellow
-    } elseif (-not $netAllowsAct) {
-        Write-Host 'WARN: -ReadyForAct ignored because network_profile is offline/empty' -ForegroundColor Yellow
+    } elseif (-not $netAllowsAct -and -not $offlineSampleReady) {
+        Write-Host 'WARN: -ReadyForAct ignored because offline mode requires an explicit -Sample' -ForegroundColor Yellow
     }
 }
 
@@ -146,12 +195,14 @@ if ((Test-Path $routeScript) -and $Hint) {
     $tmpBase = if ($env:TEMP) { $env:TEMP } else { [System.IO.Path]::GetTempPath() }
     $tmp = Join-Path $tmpBase ("case-init-route-" + [guid]::NewGuid().ToString('n'))
     try {
-        & powershell -NoProfile -ExecutionPolicy Bypass -File $routeScript -Hint $Hint -OutDir $tmp 2>$null | Out-Null
+        & $HostExe -NoProfile -ExecutionPolicy Bypass -File $routeScript -Hint $Hint -OutDir $tmp 2>$null | Out-Null
         $scopeRoute = Join-Path $tmp 'route-scope.md'
         if (Test-Path $scopeRoute) {
+            . (Join-Path $scriptDir 'lib/RouteScope.ps1')
             $rt = Get-Content $scopeRoute -Raw -Encoding UTF8
-            if ($rt -match 'primary_skill:\s*skills/(\S+)') { $primary = $Matches[1] }
-            if ($rt -match 'primary:\s*(\S+)') { $primaryId = $Matches[1] }
+            $parsed = Get-ReverseRouteScopeFields -Text $rt
+            if ($parsed.Skill) { $primary = $parsed.Skill }
+            if ($parsed.Id) { $primaryId = $parsed.Id }
         }
     } finally {
         Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
@@ -193,6 +244,7 @@ $scope = @"
 - lead_role: lead
 - specialist_roles: []
 - hint: $Hint
+- preset: $(if ([string]::IsNullOrWhiteSpace($Preset)) { 'none' } else { $Preset })
 
 ## auth
 - status: $authStatusResolved
@@ -293,7 +345,9 @@ $readmeNext = if ($ready) {
 "@
 } else {
     @"
-1. Edit ``scope.md`` — set auth.status=granted and in_scope (or re-run with -AuthGranted -TargetUrl)
+1. Edit ``scope.md`` — set auth.status=granted and in_scope
+   - network target: re-run with ``-AuthGranted -TargetUrl <url>``
+   - local sample: re-run with ``-Preset offline-sample -Sample <path>``
 2. Set ready_for_act when checklist complete
 3. Open primary skill: skills/$primary
 4. Append ``timeline.md``; update ``workitems.md``

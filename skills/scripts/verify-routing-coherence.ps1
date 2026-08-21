@@ -10,6 +10,10 @@ $packageRoot = Split-Path -Parent $skillsRoot
 $masterRoute = Join-Path $scriptDir 'master-route.ps1'
 $caseInit = Join-Path $scriptDir 'case-init.ps1'
 $masterDoc = Join-Path $skillsRoot 'MASTER-ROUTING.md'
+. (Join-Path $scriptDir 'lib/RouteScope.ps1')
+
+. (Join-Path (Join-Path $scriptDir 'lib') 'HostRuntime.ps1')
+$HostExe = Resolve-ReverseHostExe
 
 $tmpBase = if ($env:TEMP) { $env:TEMP } else { [System.IO.Path]::GetTempPath() }
 if (-not $ScratchDir) {
@@ -44,6 +48,18 @@ if (Test-Path -LiteralPath $routingJson) {
     $missingPrio = @($routeIds | Where-Object { $_ -notin @($rj.priority) })
     $extraPrio = @($rj.priority | Where-Object { $_ -notin $routeIds })
     if ($missingPrio.Count -eq 0 -and $extraPrio.Count -eq 0) { Ok 'routing.json priority covers all routes (1:1)' } else { Bad "routing.json priority mismatch: missing=$($missingPrio -join ',') extra=$($extraPrio -join ',')" }
+    $masterText = Get-Content -LiteralPath $masterDoc -Raw -Encoding UTF8
+    $masterIds = [regex]::Matches($masterText, '(?m)^\s*\|\s*\*\*(R\d+)\*\*') | ForEach-Object { $_.Groups[1].Value }
+    $jsonPrio = @($rj.priority)
+    if ($masterIds.Count -eq $jsonPrio.Count) {
+        $drift = @()
+        for ($i = 0; $i -lt $jsonPrio.Count; $i++) {
+            if ($masterIds[$i] -ne $jsonPrio[$i]) { $drift += ("{0}:{1}->{2}" -f $i, $jsonPrio[$i], $masterIds[$i]) }
+        }
+        if ($drift.Count -eq 0) { Ok 'MASTER-ROUTING.md priority table matches routing.json' } else { Bad ("MASTER-ROUTING priority drift: " + ($drift -join ', ')) }
+    } else {
+        Bad ("MASTER-ROUTING priority count {0} != json {1}" -f $masterIds.Count, $jsonPrio.Count)
+    }
 } else {
     Bad 'skills/config/routing.json missing (single source of truth)'
 }
@@ -87,13 +103,14 @@ $opsFiles = @(
     'ops/README.md',
     'references/community-security-skills.md',
     'references/domain-coverage-map.md',
-    'attack-chain\references\lifecycle-checklist.md',
-    'reverse-engineering/references\re-agent-workflow.md',
-    'pentest-tools/references\recon-pipeline.md',
+    'attack-chain/references/lifecycle-checklist.md',
+    'reverse-engineering/references/re-agent-workflow.md',
+    'pentest-tools/references/recon-pipeline.md',
     'MASTER-ROUTING.md',
-    'scripts\master-route.ps1',
-    'scripts\case-init.ps1',
-    'scripts\lib\WorkRoot.ps1',
+    'scripts/master-route.ps1',
+    'scripts/case-init.ps1',
+    'scripts/lib/WorkRoot.ps1',
+    'scripts/lib/RouteScope.ps1',
     'case-review/SKILL.md',
     'case-review/scripts/review_case.py',
     'docs-generator/references\security-report-templates.md',
@@ -178,12 +195,12 @@ Assert-Fields (Join-Path $skillsRoot 'ops/timeline-workitem.md') @('timeline.md'
 Assert-Fields (Join-Path $skillsRoot 'ops/role-map.md') @('lead', 'cie', 'cpe', 'cre', 'Handoff')
 Assert-Fields (Join-Path $skillsRoot 'ops/skill-supply-chain.md') @('AST10', 'MCP', 'bootstrap', 'MUST')
 Assert-Fields (Join-Path $skillsRoot 'references/community-security-skills.md') @('trailofbits', 'agentskills.io', 'MUST', '2026-07')
-Assert-Fields (Join-Path $skillsRoot 'reverse-engineering/references\re-agent-workflow.md') @('Triage', 'Static', 'Dynamic', 'Synthesis', 'IAT 修复铁律', 'E-iat-repair-fail', 'E-exports', 'dnSpy', '可行性门闩', 'E-self-check-crash', 'ExitProcess', '时间盒', 'E-api-hash', 'E-anti-debug-peb', 'E-wide-strings', 'A–T', 'U–AV', 'nonpe-format-cookbook')
-Assert-Fields (Join-Path $skillsRoot 'pentest-tools/references\recon-pipeline.md') @('auth.status', 'network_profile', 'Evidence', 'nuclei')
-Assert-Fields (Join-Path $skillsRoot 'docs-generator/references\security-report-templates.md') @('Evidence Chain', 'Findings', 'Path')
+Assert-Fields (Join-Path $skillsRoot 'reverse-engineering/references/re-agent-workflow.md') @('Triage', 'Static', 'Dynamic', 'Synthesis', 'IAT 修复铁律', 'E-iat-repair-fail', 'E-exports', 'dnSpy', '可行性门闩', 'E-self-check-crash', 'ExitProcess', '时间盒', 'E-api-hash', 'E-anti-debug-peb', 'E-wide-strings', 'A–T', 'U–AV', 'nonpe-format-cookbook')
+Assert-Fields (Join-Path $skillsRoot 'pentest-tools/references/recon-pipeline.md') @('auth.status', 'network_profile', 'Evidence', 'nuclei')
+Assert-Fields (Join-Path $skillsRoot 'docs-generator/references/security-report-templates.md') @('Evidence Chain', 'Findings', 'Path')
 Assert-Fields (Join-Path $skillsRoot 'field-journal/_template.md') @('Scope', 'Evidence', 'Finding')
 Assert-Fields (Join-Path $skillsRoot 'case-review/SKILL.md') @('ACTION REQUIRED', 'review_case.py', 'Evidence Graph Review')
-$vendorRulesPath = Join-Path $skillsRoot 'docs-generator/references\vendor-report-rules.md'
+$vendorRulesPath = Join-Path $skillsRoot 'docs-generator/references/vendor-report-rules.md'
 $vendorRulesText = Get-Content $vendorRulesPath -Raw -Encoding UTF8
 Assert-Fields (Join-Path $skillsRoot 'docs-generator/SKILL.md') @('vendor-report-rules.md', 'flavor = null', '不强制 IOC/ATT&CK')
 Assert-Fields $vendorRulesPath @('flavor = null', 'explicit_malware')
@@ -204,12 +221,12 @@ if ($vendorRulesText -match '(?m)JS/Web 签名逆向报告\s*\|[^\r\n]*malware')
 }
 Assert-Fields $vendorRulesPath @('skills/ops/evidence-finding-path.md', '来源证据', 'securelist.com/updated-mata', 'www.huorong.cn', 'thin overlay', 'vuln')
 Assert-Fields (Join-Path $skillsRoot 'malware-analysis/SKILL.md') @('IAT 修复铁律', 'E-iat-repair-fail', 'E-exports', 'E-self-check-crash', 'ExitProcess', '时间盒', '可行性', 'E-api-hash', 'E-sig-forge', 'A–T', 'U–AV', 'E-batch-deobf', 'E-vba-pcode')
-Assert-Fields (Join-Path $skillsRoot 'reverse-engineering\anti-analysis.md') @('Agent 响应菜谱 A–T', 'E-anti-debug-cpuid', 'E-api-hash', 'SigCheck', 'ollvm-deobfuscation')
-Assert-Fields (Join-Path $skillsRoot 'reverse-engineering/references\nonpe-format-cookbook.md') @('U–AV', 'E-batch-deobf', 'E-ps-decode-layer-N', 'E-vba-pcode', 'E-js-vmp', 'E-driver-irp-handlers', 'E-dll-tls-dllmain', 'E-android-hidden-icon-manifest', 'E-delay-import')
+Assert-Fields (Join-Path $skillsRoot 'reverse-engineering/anti-analysis.md') @('Agent 响应菜谱 A–T', 'E-anti-debug-cpuid', 'E-api-hash', 'SigCheck', 'ollvm-deobfuscation')
+Assert-Fields (Join-Path $skillsRoot 'reverse-engineering/references/nonpe-format-cookbook.md') @('U–AV', 'E-batch-deobf', 'E-ps-decode-layer-N', 'E-vba-pcode', 'E-js-vmp', 'E-driver-irp-handlers', 'E-dll-tls-dllmain', 'E-android-hidden-icon-manifest', 'E-delay-import')
 Assert-Fields (Join-Path $skillsRoot 'js-reverse/SKILL.md') @('E-js-vmp', 'E-js-deobf', 'nonpe-format-cookbook')
 Assert-Fields (Join-Path $skillsRoot 'apk-reverse/SKILL.md') @('E-android-hidden-icon-manifest', 'nonpe-format-cookbook')
-Assert-Fields (Join-Path $skillsRoot 'reverse-engineering\kernel-driver-reverse.md') @('E-driver-irp-handlers', 'E-driver-ioctl', 'E-driver-byovd')
-Assert-Fields (Join-Path $skillsRoot 'docs-generator/references\security-report-templates.md') @('thin `vuln`', '1c. 漏洞技术分析')
+Assert-Fields (Join-Path $skillsRoot 'reverse-engineering/kernel-driver-reverse.md') @('E-driver-irp-handlers', 'E-driver-ioctl', 'E-driver-byovd')
+Assert-Fields (Join-Path $skillsRoot 'docs-generator/references/security-report-templates.md') @('thin `vuln`', '1c. 漏洞技术分析')
 if ($vendorRulesText -match '(?m)vuln.*默认全文' -or $vendorRulesText -match '第 3 个默认全文 flavor') {
     # presence of explicit "not third default" language is OK; flag only if it claims vuln IS a third default full flavor
 }
@@ -254,25 +271,26 @@ $cases = @(
 )
 foreach ($c in $cases) {
     $out = Join-Path $ScratchDir ("route-{0}" -f $c.N)
-    $stdout = & powershell -NoProfile -ExecutionPolicy Bypass -File $masterRoute -Hint $c.H -OutDir $out 2>&1 | Out-String
+    $stdout = & $HostExe -NoProfile -ExecutionPolicy Bypass -File $masterRoute -Hint $c.H -OutDir $out 2>&1 | Out-String
     $stdout | Set-Content -LiteralPath (Join-Path $ScratchDir ("route-{0}.txt" -f $c.N)) -Encoding UTF8
     $scope = Join-Path $out 'route-scope.md'
     if (-not (Test-Path $scope)) { Bad "no scope $($c.N)"; continue }
     $text = Get-Content $scope -Raw -Encoding UTF8
-    if ($text -notmatch ("primary: {0}" -f [regex]::Escape($c.Id))) { Bad "$($c.N) id want $($c.Id)" } else { Ok "$($c.N) -> $($c.Id)" }
+    $parsed = Get-ReverseRouteScopeFields -Text $text
+    if ($parsed.Id -ne $c.Id) { Bad "$($c.N) id want $($c.Id) got $($parsed.Id)" } else { Ok "$($c.N) -> $($c.Id)" }
     $abs = Join-Path $skillsRoot ($c.Sub -replace '/', [IO.Path]::DirectorySeparatorChar)
     if (-not (Test-Path $abs)) { Bad "missing $($c.Sub)" } else { Ok "exists $($c.Sub)" }
 }
 
 # default outdir under work
-$def = & powershell -NoProfile -ExecutionPolicy Bypass -File $masterRoute -Hint 'radare2 analyze' 2>&1 | Out-String
+$def = & $HostExe -NoProfile -ExecutionPolicy Bypass -File $masterRoute -Hint 'radare2 analyze' 2>&1 | Out-String
 $def | Set-Content (Join-Path $ScratchDir 'default-out.txt') -Encoding UTF8
 if ($def -match 'work[\\/]master-route-') { Ok 'default OutDir under work/' } else { Bad 'default OutDir not under work/' }
 
 # project-root output must stay with the analysis project when the skill is invoked elsewhere
 $projectRoot = Join-Path $ScratchDir 'analysis-project'
 New-Item -ItemType Directory -Force -Path $projectRoot | Out-Null
-$projectRoute = & powershell -NoProfile -ExecutionPolicy Bypass -File $masterRoute `
+$projectRoute = & $HostExe -NoProfile -ExecutionPolicy Bypass -File $masterRoute `
     -Hint 'radare2 analyze' -ProjectRoot $projectRoot 2>&1 | Out-String
 $projectWork = Join-Path $projectRoot 'work'
 $projectRouteDirs = @(Get-ChildItem -LiteralPath $projectWork -Directory -Filter 'master-route-*' -ErrorAction SilentlyContinue)
@@ -287,7 +305,7 @@ New-Item -ItemType Directory -Force -Path $defaultProjectRoot | Out-Null
 $previousLocation = Get-Location
 try {
     Set-Location -LiteralPath $defaultProjectRoot
-    $defaultProjectRoute = & powershell -NoProfile -ExecutionPolicy Bypass -File $masterRoute `
+    $defaultProjectRoute = & $HostExe -NoProfile -ExecutionPolicy Bypass -File $masterRoute `
         -Hint 'radare2 analyze' 2>&1 | Out-String
 } finally {
     Set-Location -LiteralPath $previousLocation
@@ -302,7 +320,7 @@ if ($defaultProjectRoutes.Count -eq 1 -and (Test-Path (Join-Path $defaultProject
 
 # case-init real path
 $caseName = 'verify-ops-' + (Get-Date -Format 'HHmmss')
-$ci = & powershell -NoProfile -ExecutionPolicy Bypass -File $caseInit -Hint 'apk jadx reverse' -CaseName $caseName -PackageRoot $packageRoot 2>&1 | Out-String
+$ci = & $HostExe -NoProfile -ExecutionPolicy Bypass -File $caseInit -Hint 'apk jadx reverse' -CaseName $caseName -PackageRoot $packageRoot 2>&1 | Out-String
 $ci | Set-Content (Join-Path $ScratchDir 'case-init.txt') -Encoding UTF8
 $caseRoot = Join-Path $packageRoot ("work/{0}" -f $caseName)
 foreach ($f in @('scope.md', 'timeline.md', 'workitems.md')) {
@@ -317,7 +335,7 @@ if (Test-Path (Join-Path $caseRoot 'scope.md')) {
 }
 
 $projectCaseName = 'verify-project-root-' + (Get-Date -Format 'HHmmss')
-& powershell -NoProfile -ExecutionPolicy Bypass -File $caseInit `
+& $HostExe -NoProfile -ExecutionPolicy Bypass -File $caseInit `
     -Hint 'apk jadx reverse' -CaseName $projectCaseName -PackageRoot $packageRoot `
     -ProjectRoot $projectRoot 2>&1 | Out-Null
 $projectCaseRoot = Join-Path $projectWork $projectCaseName
@@ -332,7 +350,7 @@ if ((Test-Path (Join-Path $projectCaseRoot 'scope.md')) -and
 $defaultCaseName = 'verify-default-project-' + (Get-Date -Format 'HHmmss')
 try {
     Set-Location -LiteralPath $defaultProjectRoot
-    & powershell -NoProfile -ExecutionPolicy Bypass -File $caseInit `
+    & $HostExe -NoProfile -ExecutionPolicy Bypass -File $caseInit `
         -Hint 'apk jadx reverse' -CaseName $defaultCaseName 2>&1 | Out-Null
 } finally {
     Set-Location -LiteralPath $previousLocation
@@ -407,15 +425,17 @@ foreach ($mf in @($skillsManifest, $kaliManifest)) {
         }
     }
     foreach ($cap in $mc.capabilities) {
-        if (-not $cap.canAutoInstall) { continue }
-        $hasPin = ($cap.pinnedVersion -or $cap.pinnedCommit -or $cap.pinPolicy)
-        switch ($cap.bootstrapKind) {
-            'github-release-zip' { $hasPin = $hasPin -or $cap.assetSha256 -or $cap.preferApiDigest }
-            'github-release-jar-wrapper' { $hasPin = $hasPin -or $cap.assetSha256 }
-            'github-release-tar' { $hasPin = $hasPin -or $cap.assetSha256 -or $cap.preferApiDigest }
+        $capMap = @{}
+        foreach ($prop in $cap.PSObject.Properties) { $capMap[$prop.Name] = $prop.Value }
+        if (-not $capMap['canAutoInstall']) { continue }
+        $hasPin = ($capMap['pinnedVersion'] -or $capMap['pinnedCommit'] -or $capMap['pinPolicy'])
+        switch ($capMap['bootstrapKind']) {
+            'github-release-zip' { $hasPin = $hasPin -or $capMap['assetSha256'] -or $capMap['preferApiDigest'] }
+            'github-release-jar-wrapper' { $hasPin = $hasPin -or $capMap['assetSha256'] }
+            'github-release-tar' { $hasPin = $hasPin -or $capMap['assetSha256'] -or $capMap['preferApiDigest'] }
             'local-http-mcp' {
-                $fetchesExternalSource = $cap.repoUrl -or $cap.repo
-                $hasPin = (-not $fetchesExternalSource) -or $cap.pinnedCommit -or $cap.pinnedVersion
+                $fetchesExternalSource = $capMap['repoUrl'] -or $capMap['repo']
+                $hasPin = (-not $fetchesExternalSource) -or $capMap['pinnedCommit'] -or $capMap['pinnedVersion']
             }
             'winget-package' { $hasPin = $hasPin } # winget-latest 属于 pinPolicy
             'apt-package' { $hasPin = $true }      # 发行版仓库自带（Kali 侧）
@@ -424,9 +444,9 @@ foreach ($mf in @($skillsManifest, $kaliManifest)) {
             default { $hasPin = $hasPin }
         }
         if (-not $hasPin) {
-            Bad "unpinned auto-install capability: $($cap.name) in $mn ($($cap.bootstrapKind))"
+            Bad "unpinned auto-install capability: $($capMap['name']) in $mn ($($capMap['bootstrapKind']))"
         } else {
-            Ok "pinned $($cap.name) in $mn"
+            Ok "pinned $($capMap['name']) in $mn"
         }
     }
 }
@@ -441,6 +461,58 @@ $idCheck += "HEAD packageRoot=$packageRoot"
 $idCheck += "fastapi-in-ops-deps=false"
 $idCheck -join [Environment]::NewLine | Set-Content (Join-Path $ScratchDir 'identity-check.txt') -Encoding UTF8
 Ok 'identity-check written'
+
+# Issue #77 — analysis decision framework anchors (MUST run before fail gate)
+$adf = Join-Path $PackageRoot "skills/ops/analysis-decision-framework.md"
+if (Test-Path -LiteralPath $adf) { Ok "analysis-decision-framework.md present (issue #77)" } else { Bad "analysis-decision-framework.md missing (issue #77)" }
+if (Test-Path -LiteralPath $adf) {
+    $adfText = Get-Content -LiteralPath $adf -Raw -Encoding UTF8
+    foreach ($pair in @(
+        @("R4*", "ADF R4* validated sufficiency"),
+        @("E-insufficient-evidence", "ADF E-insufficient-evidence"),
+        @("E-hypothesis-confirmed", "ADF hypothesis evidence"),
+        @("ungrounded", "ADF ungrounded flag"),
+        @("Not** a second master", "ADF not second master workflow"),
+        @("analysis-blindspot-cookbook", "ADF links blindspot cookbook")
+    )) {
+        if ($adfText -like ("*" + $pair[0] + "*")) { Ok $pair[1] } else { Bad ("missing: " + $pair[1]) }
+    }
+}
+$efp77 = Join-Path $PackageRoot "skills/ops/evidence-finding-path.md"
+if (Test-Path -LiteralPath $efp77) {
+    $efpText = Get-Content -LiteralPath $efp77 -Raw -Encoding UTF8
+    if ($efpText -like "*analysis-decision-framework*") { Ok "evidence-finding-path hooks ADF" } else { Bad "evidence-finding-path missing ADF hook" }
+    if ($efpText -like "*E-insufficient-evidence*") { Ok "evidence-finding-path R4* id" } else { Bad "evidence-finding-path missing E-insufficient-evidence" }
+} else { Bad "evidence-finding-path.md missing" }
+$wf77 = Join-Path $PackageRoot "skills/reverse-engineering/references/re-agent-workflow.md"
+if (Test-Path -LiteralPath $wf77) {
+    $wfText = Get-Content -LiteralPath $wf77 -Raw -Encoding UTF8
+    if ($wfText -like "*analysis-decision-framework*") { Ok "re-agent-workflow hooks ADF" } else { Bad "re-agent-workflow missing ADF hook" }
+    if ($wfText -like "*analysis-blindspot-cookbook*") { Ok "re-agent-workflow hooks blindspot cookbook" } else { Bad "re-agent-workflow missing blindspot cookbook hook" }
+} else { Bad "re-agent-workflow.md missing" }
+$rules77 = Join-Path $PackageRoot "RULES.md"
+if (Test-Path -LiteralPath $rules77) {
+    $rulesText = Get-Content -LiteralPath $rules77 -Raw -Encoding UTF8
+    if ($rulesText -like "*analysis-decision-framework*") { Ok "RULES.md hooks ADF" } else { Bad "RULES.md missing ADF hook" }
+} else { Bad "RULES.md missing" }
+
+# Issue #77 batch 2 — blindspot cookbook anchors
+$bsc = Join-Path $PackageRoot "skills/ops/analysis-blindspot-cookbook.md"
+if (Test-Path -LiteralPath $bsc) { Ok "analysis-blindspot-cookbook.md present (issue77 R52-R81)" } else { Bad "analysis-blindspot-cookbook.md missing (issue77 R52-R81)" }
+if (Test-Path -LiteralPath $bsc) {
+    $bscText = Get-Content -LiteralPath $bsc -Raw -Encoding UTF8
+    foreach ($pair in @(
+        @("R52", "BSC R52 Rust"),
+        @("E-rust-identified", "BSC E-rust-identified"),
+        @("E-vmp-protected", "BSC E-vmp-protected"),
+        @("E-llm-hallucination", "BSC E-llm-hallucination"),
+        @("E-kernel-protect-tamper", "BSC kernel detect-only id"),
+        @("Not** a third master", "BSC not third master workflow"),
+        @("no bypass tutorial", "BSC no bypass tutorial")
+    )) {
+        if ($bscText -like ("*" + $pair[0] + "*")) { Ok $pair[1] } else { Bad ("missing: " + $pair[1]) }
+    }
+}
 
 Write-Host "Scratch=$ScratchDir"
 if ($fail.Count -gt 0) {

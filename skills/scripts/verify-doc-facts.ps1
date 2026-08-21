@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Verify doc fact tables (capability lists, MCP ports, Burp tool count)
   against source-of-truth (bootstrap-manifest.json / McpHttpServer.java).

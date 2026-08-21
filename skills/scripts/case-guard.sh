@@ -2,7 +2,7 @@
 # Lightweight scope gate before ACT. Exit 0=ok, 2=not ready, 1=usage/error.
 # Usage:
 #   bash skills/scripts/case-guard.sh --case-root work/my-case
-#   bash skills/scripts/case-guard.sh --case-root work/my-case --force
+#   bash skills/scripts/case-guard.sh --case-root work/my-case --force  # compatibility flag; never bypasses scope hard gates
 set -euo pipefail
 
 CASE_ROOT=""
@@ -120,9 +120,8 @@ echo "CASE-GUARD NOT READY: $CASE_ROOT"
 for i in "${ISSUES[@]}"; do echo " - $i"; done
 
 if [[ $FORCE -eq 1 ]]; then
-  echo "CASE-GUARD: --force set; continuing with warnings only."
-  exit 0
+  echo "CASE-GUARD: --force does not bypass scope hard gates."
 fi
 
-echo "Fix scope (or re-run case-init with --auth-granted --target-url ...) or pass --force."
+echo "Fix scope (or re-run case-init with --auth-granted --target-url ...)."
 exit 2

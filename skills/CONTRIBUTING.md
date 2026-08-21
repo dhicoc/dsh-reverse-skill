@@ -248,21 +248,23 @@ if (-not $spec.Available) {
 
 ## 5. 接入路由系统
 
-### 5.1 更新路由矩阵
+### 5.1 更新路由（只改 JSON）
 
-打开 `routing.md`，在对应的表格中添加新行：
+1. 在 `skills/tests/routing-benchmark.json` **先**加一条（最好中英各一）失败用例
+2. 只改 `skills/config/routing.json`（`routes` + `priority`）
+3. 同步 `skills/MASTER-ROUTING.md` 优先级表（顺序必须与 `priority` 一致）
+4. `routing.md` 是歧义附录，不是 SSoT；不要只改 markdown 表
+5. 跑 `test-routing.ps1` 与 `verify-routing-coherence.ps1`
 
-- "按目标类型"表：添加新的目标类型 → 推荐入口
-- "按用户意图"表：添加用户可能说的话 → 对应 skill
-- "按工具链"表：添加新工具 → 对应模块
+不要为「路由没打中」就新建 PRIMARY。先加 keyword。新 PRIMARY 必须有独立工具链 **和** 至少 2 条基准用例。
 
-### 5.2 更新根 SKILL.md
+### 5.2 更新根 SKILL.md / INDEX
 
-打开根目录的 `SKILL.md`，在"当前模块"表格中添加新行。
+打开 `skills/SKILL.md` 模块表；跑 `extract-summaries.ps1` 重生 `INDEX.md`。
 
-### 5.3 更新 Kiro steering（如果使用 Kiro）
+### 5.3 不要写客户端全局规则
 
-打开 `.kiro/steering/reverse-routing.md`，在触发关键词列表中添加新 skill 相关的关键词。
+禁止把路由表写入 `~/.claude` / `.kiro/steering` 作为本包默认步骤。客户端适配是可选的。
 
 ---
 
@@ -322,7 +324,8 @@ bash "<项目根目录>/kali/scripts/refresh-tool-index.sh"
 
 **通用（必须）**：
 - [ ] `<new-skill>/SKILL.md` 存在且包含所有必需章节
-- [ ] 路由矩阵（`routing.md`）已更新，能正确路由到新 skill
+- [ ] `routing-benchmark.json` 已先添加用例，`routing.json` 已更新且能正确路由到新 skill
+- [ ] `MASTER-ROUTING.md` 优先级表已同步；`routing.md` 歧义附录已按需更新
 - [ ] 根 `SKILL.md` 的模块表已更新
 - [ ] `.kiro/steering/reverse-routing.md` 触发关键词已更新（如果使用 Kiro）
 - [ ] `RULES.md` 触发关键词已更新

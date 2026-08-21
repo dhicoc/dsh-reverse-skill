@@ -5,12 +5,12 @@
 # Supports the same capability names and the same high-level modes:
 #   - dependency expansion
 #   - package / release / pipx / npm installation
-#   - MCP registration hints / config writing
+#   - optional, explicit MCP host registration
 #   - optional service start with --start-services
 #   - refresh tool index unless --skip-refresh
 #
 # Usage:
-#   bash skills/scripts/bootstrap-reverse.sh <capability1> [capability2] ... [--start-services] [--skip-refresh]
+#   bash skills/scripts/bootstrap-reverse.sh <capability1> [capability2] ... [--start-services] [--skip-refresh] [--mcp-host=none|claude|codex|both]
 #   bash skills/scripts/bootstrap-reverse.sh --list
 
 set -euo pipefail
@@ -26,7 +26,9 @@ if [[ -z "$TOOLS_ROOT" || "$TOOLS_ROOT" == "/" || "$TOOLS_ROOT" == "$HOME" ]]; t
   echo "Unsafe REVERSE_SKILL_TOOLS_DIR: $TOOLS_ROOT" >&2
   exit 2
 fi
-MCP_CONFIG_PATH="${CLAUDE_MCP_CONFIG:-$HOME/.claude/mcp.json}"
+CLAUDE_MCP_CONFIG_PATH="${CLAUDE_MCP_CONFIG:-$HOME/.claude/mcp.json}"
+CODEX_MCP_CONFIG_PATH="${CODEX_CONFIG_PATH:-$HOME/.codex/config.toml}"
+MCP_HOST_TARGET="none"
 MANIFEST_PATH="$SCRIPT_DIR/bootstrap-manifest.json"
 
 UNAME_S="$(uname -s 2>/dev/null || echo unknown)"
@@ -42,6 +44,7 @@ LIST_ONLY=false
 MANUAL_REQUIRED=false
 FAILED=false
 LAST_CAPABILITY_MANUAL=false
+LAST_CAPABILITY_REGISTRATION_REQUIRED=false
 CAPABILITIES=()
 
 for arg in "$@"; do
@@ -50,6 +53,10 @@ for arg in "$@"; do
     --skip-refresh) SKIP_REFRESH=true ;;
     --list|-l) LIST_ONLY=true ;;
     --help|-h) CAPABILITIES+=("__help__") ;;
+    --mcp-host=none|--mcp-host=claude|--mcp-host=codex|--mcp-host=both)
+      MCP_HOST_TARGET="${arg#--mcp-host=}"
+      ;;
+    --mcp-host=*) echo "Invalid MCP host target: ${arg#--mcp-host=}" >&2; exit 2 ;;
     -*) echo "Unknown option: $arg" >&2; exit 2 ;;
     *) CAPABILITIES+=("$arg") ;;
   esac
@@ -170,7 +177,7 @@ platform_doc() {
 print_usage() {
   cat <<'EOF'
 Usage:
-  bash skills/scripts/bootstrap-reverse.sh <capability1> [capability2] ... [--start-services] [--skip-refresh]
+  bash skills/scripts/bootstrap-reverse.sh <capability1> [capability2] ... [--start-services] [--skip-refresh] [--mcp-host=none|claude|codex|both]
   bash skills/scripts/bootstrap-reverse.sh --list
 
 Capabilities (parity with bootstrap-reverse.ps1):
@@ -180,14 +187,16 @@ Capabilities (parity with bootstrap-reverse.ps1):
 
 Examples:
   bash skills/scripts/bootstrap-reverse.sh jadx apktool frida
-  bash skills/scripts/bootstrap-reverse.sh jshookmcp reqable-mcp
-  bash skills/scripts/bootstrap-reverse.sh idapro --start-services
+  bash skills/scripts/bootstrap-reverse.sh jshookmcp --mcp-host=codex
+  bash skills/scripts/bootstrap-reverse.sh reqable-mcp --mcp-host=claude
+  bash skills/scripts/bootstrap-reverse.sh idapro --start-services --mcp-host=both
   bash skills/scripts/bootstrap-reverse.sh burpsuite-mcp
 
 Notes:
   - This script supports Linux and macOS.
-  - It writes MCP config to ~/.claude/mcp.json by default.
-  - Override with CLAUDE_MCP_CONFIG=/path/to/mcp.json.
+  - MCP host registration is opt-in. The default is --mcp-host=none and does not write client-global config.
+  - Explicit Claude registration uses CLAUDE_MCP_CONFIG or ~/.claude/mcp.json.
+  - Explicit Codex registration uses CODEX_CONFIG_PATH or ~/.codex/config.toml.
   - Override install root with REVERSE_SKILL_TOOLS_DIR=~/tools.
 EOF
 }
@@ -490,11 +499,11 @@ PY
   fi
 }
 
-write_mcp_server() {
+write_claude_mcp_server() {
   local name="$1"
   local json_payload="$2"
-  ensure_dir "$(dirname "$MCP_CONFIG_PATH")"
-  python3 - "$MCP_CONFIG_PATH" "$name" "$json_payload" <<'PY'
+  ensure_dir "$(dirname "$CLAUDE_MCP_CONFIG_PATH")"
+  python3 - "$CLAUDE_MCP_CONFIG_PATH" "$name" "$json_payload" <<'PY'
 import json, pathlib, sys
 path = pathlib.Path(sys.argv[1])
 name = sys.argv[2]
@@ -508,9 +517,84 @@ else:
     data = {}
 data.setdefault('mcpServers', {})[name] = payload
 path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
-print(path)
 PY
-  log_ok "MCP server '$name' registered in $MCP_CONFIG_PATH"
+  log_ok "MCP server '$name' registered for Claude in $CLAUDE_MCP_CONFIG_PATH"
+}
+
+write_codex_mcp_server() {
+  local name="$1"
+  local json_payload="$2"
+  ensure_dir "$(dirname "$CODEX_MCP_CONFIG_PATH")"
+  python3 - "$CODEX_MCP_CONFIG_PATH" "$name" "$json_payload" <<'PY'
+import json, pathlib, re, sys
+path = pathlib.Path(sys.argv[1])
+name = sys.argv[2]
+payload = json.loads(sys.argv[3])
+lines = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
+header = re.compile(r'^\s*\[mcp_servers\.([^\].]+)(?:\.env)?\]\s*$')
+out = []
+skip = False
+for line in lines:
+    match = header.match(line)
+    if line.lstrip().startswith('['):
+        if match and match.group(1) == name:
+            skip = True
+            continue
+        if skip:
+            skip = False
+    if not skip:
+        out.append(line)
+while out and not out[-1].strip():
+    out.pop()
+if out:
+    out.append('')
+
+def literal(value):
+    if isinstance(value, bool):
+        return 'true' if value else 'false'
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, list):
+        return '[' + ', '.join(literal(v) for v in value) + ']'
+    text = str(value).replace('\\', '\\\\').replace('"', '\\"')
+    return f'"{text}"'
+
+out.append(f'[mcp_servers.{name}]')
+for key in ('type', 'url', 'command', 'args', 'bearer_token_env_var'):
+    if key in payload:
+        out.append(f'{key} = {literal(payload[key])}')
+for key in sorted(k for k in payload if k not in {'type', 'url', 'command', 'args', 'bearer_token_env_var', 'env', 'headers'}):
+    out.append(f'{key} = {literal(payload[key])}')
+env = payload.get('env')
+if isinstance(env, dict) and env:
+    out.append('')
+    out.append(f'[mcp_servers.{name}.env]')
+    for key in sorted(env):
+        out.append(f'{key} = {literal(env[key])}')
+path.write_text('\n'.join(out) + '\n', encoding='utf-8')
+PY
+  log_ok "MCP server '$name' registered for Codex in $CODEX_MCP_CONFIG_PATH"
+}
+
+write_mcp_server() {
+  local name="$1"
+  local json_payload="$2"
+  case "$MCP_HOST_TARGET" in
+    none)
+      LAST_CAPABILITY_REGISTRATION_REQUIRED=true
+      log_warn "MCP registration skipped for '$name' (client-neutral default). Re-run with --mcp-host=claude, codex, or both."
+      ;;
+    claude)
+      write_claude_mcp_server "$name" "$json_payload"
+      ;;
+    codex)
+      write_codex_mcp_server "$name" "$json_payload"
+      ;;
+    both)
+      write_claude_mcp_server "$name" "$json_payload"
+      write_codex_mcp_server "$name" "$json_payload"
+      ;;
+  esac
 }
 
 test_tcp_port() {
@@ -855,7 +939,7 @@ import json, sys
 print(json.dumps({'command':'docker','args':['run','--rm','-i',sys.argv[1],'mcp','serve']}))
 PY
 )"
-    log_warn "pentestswarm Go install failed or produced no runnable binary; registered Docker fallback $docker_image"
+    log_warn "pentestswarm Go install failed or produced no runnable binary; prepared Docker fallback $docker_image"
   else
     manual_required pentestswarm "Install Go 1.24+ or Docker, then install Pentest-Swarm-AI and ensure pentestswarm is on PATH."
   fi
@@ -959,7 +1043,7 @@ while IFS= read -r capability; do
   EXPANDED+=("$capability")
 done < <(expand_capabilities "${CAPABILITIES[@]}")
 
-log_info "platform=$PLATFORM doc=$(platform_doc) tools_root=$TOOLS_ROOT"
+log_info "platform=$PLATFORM doc=$(platform_doc) tools_root=$TOOLS_ROOT mcp_host=$MCP_HOST_TARGET"
 
 if ! ensure_python_interpreter; then
   log_err "Python 3 is required to read bootstrap-manifest.json; no capability was executed."
@@ -969,9 +1053,12 @@ fi
 for cap in "${EXPANDED[@]}"; do
   log_info "ensure $cap"
   LAST_CAPABILITY_MANUAL=false
+  LAST_CAPABILITY_REGISTRATION_REQUIRED=false
   if ensure_capability "$cap"; then
     if $LAST_CAPABILITY_MANUAL; then
       status_json_line "$cap" "manual-required" "see $(platform_doc)" >> "$RESULTS_FILE"
+    elif $LAST_CAPABILITY_REGISTRATION_REQUIRED; then
+      status_json_line "$cap" "registration-required" "re-run with --mcp-host=claude, codex, or both" >> "$RESULTS_FILE"
     else
       status_json_line "$cap" "ready" >> "$RESULTS_FILE"
     fi

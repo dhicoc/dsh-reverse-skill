@@ -72,10 +72,78 @@ exec "$REAL_PYTHON" "\$@"
 STUB
 chmod +x "$STUB_BIN/python3"
 
+# Keep the Kali subflow hermetic on generic Linux/macOS hosts. The Kali
+# bootstrap reads its manifest with jq, but this regression test must not
+# depend on the host having jq installed just to exercise that code path.
+JQ_STUB_PY="$SCRATCH/jq-stub.py"
+cat > "$JQ_STUB_PY" <<'PY'
+import json
+import re
+import sys
+
+args = sys.argv[1:]
+raw = False
+exit_status = False
+variables = {}
+positionals = []
+i = 0
+while i < len(args):
+    arg = args[i]
+    if arg.startswith('-') and set(arg[1:]) <= {'e', 'r'}:
+        raw = raw or 'r' in arg
+        exit_status = exit_status or 'e' in arg
+        i += 1
+        continue
+    if arg == '--arg':
+        variables[args[i + 1]] = args[i + 2]
+        i += 3
+        continue
+    positionals.append(arg)
+    i += 1
+
+if not positionals:
+    raise SystemExit(2)
+
+expression = positionals[0]
+input_path = positionals[1] if len(positionals) > 1 else None
+if input_path:
+    with open(input_path, encoding='utf-8') as handle:
+        data = json.load(handle)
+else:
+    data = json.load(sys.stdin)
+
+if expression == '.bootstrapDependencies[$name][$field] // empty':
+    result = data.get('bootstrapDependencies', {}).get(variables['name'], {}).get(variables['field'])
+elif expression == '.capabilities[] | select(.name == $name) | .[$field] // empty':
+    capability = next((item for item in data.get('capabilities', []) if item.get('name') == variables['name']), None)
+    result = None if capability is None else capability.get(variables['field'])
+elif expression in ('.name', '.status'):
+    result = data.get(expression[1:])
+else:
+    match = re.fullmatch(r'\.mcpServers\."([^"]+)"\s*=\s*(.+)', expression)
+    if not match:
+        raise SystemExit(2)
+    data.setdefault('mcpServers', {})[match.group(1)] = json.loads(match.group(2))
+    result = data
+
+if exit_status and (result is None or result is False or result == ''):
+    raise SystemExit(1)
+if raw and not isinstance(result, (dict, list)):
+    print('' if result is None else result)
+else:
+    print(json.dumps(result, ensure_ascii=False))
+PY
+
+cat > "$STUB_BIN/jq" <<STUB
+#!/usr/bin/env bash
+exec "$REAL_PYTHON" "$JQ_STUB_PY" "\$@"
+STUB
+chmod +x "$STUB_BIN/jq"
+
 json_value() {
   "$REAL_PYTHON" - "$MANIFEST" "$1" "$2" <<'PY'
 import json, pathlib, sys
-d=json.loads(pathlib.Path(sys.argv[1]).read_text())
+d=json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
 if sys.argv[2] == 'dependency': v=d['bootstrapDependencies'][sys.argv[3]]['package']
 else: v=next(x for x in d['capabilities'] if x['name']==sys.argv[2])[sys.argv[3]]
 print(v)
@@ -142,9 +210,9 @@ mkdir -p "$BROKEN_DIR"
 cp "$BOOTSTRAP" "$BROKEN_DIR/bootstrap-reverse.sh"
 "$REAL_PYTHON" - "$MANIFEST" "$BROKEN_DIR/bootstrap-manifest.json" <<'PY'
 import json, pathlib, sys
-data = json.loads(pathlib.Path(sys.argv[1]).read_text())
+data = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8'))
 next(x for x in data['capabilities'] if x['name'] == 'agent-browser')['npmPackage'] = ''
-pathlib.Path(sys.argv[2]).write_text(json.dumps(data))
+pathlib.Path(sys.argv[2]).write_text(json.dumps(data), encoding='utf-8')
 PY
 : > "$CALL_LOG"
 set +e

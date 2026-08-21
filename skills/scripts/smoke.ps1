@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 # reverse-skill smoke entrypoint: verify + script parse + master-route sample matrix.
 # Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File skills/scripts/smoke.ps1
@@ -71,6 +71,7 @@ $scripts = @(
     'case-guard.ps1',
     'test-routing.ps1',
     'extract-summaries.ps1'
+    'test-bootstrap-codex-encoding.ps1'
 )
 $parseOk = 0
 $parseFail = 0
@@ -101,7 +102,24 @@ foreach ($name in $scripts) {
 }
 $parseLog -join [Environment]::NewLine | Set-Content (Join-Path $LogDir '02-parse.txt') -Encoding UTF8
 
-# --- 3) master-route sample matrix ---
+# --- 3) Codex config UTF-8 round-trip regression ---
+$encodingTest = Join-Path $scriptDir 'test-bootstrap-codex-encoding.ps1'
+if (-not (Test-Path -LiteralPath $encodingTest)) {
+    Bad 'test-bootstrap-codex-encoding.ps1 missing'
+} else {
+    $encodingLog = Join-Path $LogDir '03-codex-encoding.txt'
+    & $SmokeHostExe -NoProfile -ExecutionPolicy Bypass -File $encodingTest `
+        -ScratchDir (Join-Path $LogDir 'codex-encoding') 2>&1 |
+        Tee-Object -FilePath $encodingLog | Out-Null
+    $encodingExit = $LASTEXITCODE
+    if ($encodingExit -eq 0) {
+        Ok 'Codex config UTF-8 round-trip regression'
+    } else {
+        Bad ("Codex config UTF-8 regression exit {0}" -f $encodingExit)
+    }
+}
+
+# --- 4) master-route sample matrix ---
 $mr = Join-Path $scriptDir 'master-route.ps1'
 $cases = @(
     @{ Name = 'apk'; Hint = 'decompile APK with jadx apktool smali'; Expect = 'apk-reverse' },
@@ -137,7 +155,7 @@ if (-not (Test-Path -LiteralPath $mr)) {
 }
 $routeSummary -join [Environment]::NewLine | Set-Content (Join-Path $LogDir '03-route-summary.txt') -Encoding UTF8
 
-# --- 4) Evidence ID immutability ---
+# --- 5) Evidence ID immutability ---
 $appendEvidence = Join-Path $scriptDir 'append-evidence.ps1'
 $evidenceCase = Join-Path $LogDir 'evidence-immutability'
 if (-not (Test-Path -LiteralPath $appendEvidence)) {
@@ -197,3 +215,4 @@ if ($fail.Count -gt 0) {
 }
 Write-Host 'OVERALL: ALL PASS' -ForegroundColor Green
 exit 0
+

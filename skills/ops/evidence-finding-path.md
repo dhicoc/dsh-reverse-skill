@@ -114,3 +114,18 @@ The review is read-only and checks scope fields, Evidence records, work item and
 | PG 不可变行 + API | Markdown 文件 + hash 字段 |
 | UI 审阅队列 | 报告 + next-step 菜单 + journal |
 | ATT&CK 深度绑定 | 可选标签，不强制 UI |
+
+
+## Validated sufficiency (Issue #77 / R4*)
+
+Global bind rule remains: every Finding references **>=1** Evidence.
+
+Promotion to status=validated is stricter (decision cookbook):
+
+| status | Evidence bar |
+|--------|----------------|
+| preliminary / candidate | >=1 (unchanged) |
+| **validated** | **SHOULD >=2 independent** Evidence (best: 1 static + 1 dynamic). A single Evidence item alone MUST NOT silently promote to validated — keep candidate/preliminary, or record residual_risk + human confirm. |
+| blocked promotion | record Evidence E-insufficient-evidence |
+
+Full recipes: [nalysis-decision-framework.md](analysis-decision-framework.md) (R4*, R1, R41, R44).

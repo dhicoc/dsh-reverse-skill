@@ -77,8 +77,8 @@ $markdownLines = @(
     '',
     "- 扫描时间: $generatedAt",
     '- 路由入口: `SKILL.md` → `routing.md` → 对应子 skill',
-    '- 说明: 本表由 `skills/scripts/refresh-tool-index.ps1` 自动生成，优先用于 Claude 路由和工具路径确认。',
-    '- 注意: 对于 jshookmcp 这类 MCP server，`yes` 只表示本机具备通过 node/npx 拉起它的条件，不表示它已经在 MCP 配置里注册并启用。',
+    '- 说明: 本表由 `skills/scripts/refresh-tool-index.ps1` 自动生成，用于各 Agent 客户端的路由和工具路径确认。',
+    '- 注意: MCP-only 能力的工具可用性与运行时分开计算；`npx` 只代表 npm MCP 的运行条件，不能单独让 jshookmcp / reqable-mcp 变成可用或 Ready。',
     '',
     '| 工具 | 归属 skill | 作用 | 可用 | 路径 | 版本 | 来源 | 脚本引用 |',
     '|---|---|---|---|---|---|---|---|'
@@ -180,4 +180,3 @@ $jsonPayload | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $OutputJson -E
 "markdown=$OutputMarkdown"
 "json=$OutputJson"
 "tools=$($reports.Count)"
-

@@ -29,7 +29,7 @@ async function main() {
 
     assert.ok(provider, 'plugin must register a skill provider')
     const candidates = await provider.list()
-    assert.equal(candidates.length, 86, 'expected 85 bundled skills plus the BOM fixture')
+    assert.equal(candidates.length, 87, 'expected 86 bundled skills plus the BOM fixture')
     assert.equal(new Set(candidates.map((candidate) => candidate.name)).size, candidates.length, 'skill names must be unique')
 
     const bundledCandidates = candidates.filter((candidate) => candidate.name !== fixtureName)

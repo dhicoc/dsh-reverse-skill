@@ -5,6 +5,12 @@ description: Reverse JavaScript-based custom DSL/VM interpreters, non-standard W
 
 # 🔄 DSL 自定义虚拟机逆向（DSL VM Reverse Engineering）
 
+## ACTION REQUIRED（读完后立刻执行）
+
+1. `NOW`: 确认当前任务是自定义 JS opcode VM / 风控引擎，不是标准 WASM 或普通 webpack
+2. `NOW`: `case-init` 直到 `scope.md` 就绪；离线样本用 `offline` / `lab`
+3. `ACT`: 从「3. 通用逆向工作流」Phase 1 做文件分类，不要停在目录
+
 > 用于逆向基于 JavaScript 实现的自定义 WASM 虚拟机/风控引擎
 
 ---

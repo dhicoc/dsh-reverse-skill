@@ -1,11 +1,13 @@
 # Reverse Engineering Skill Routing Matrix
 
+> **Advisory only.** PRIMARY comes from `config/routing.json` via `scripts/master-route.ps1`. This file is a 3-axis disambiguation view. If a row here disagrees with JSON, JSON wins.
+
 Route tasks to the most appropriate skill module by target type, user intent, and toolchain.
 
 ## CRITICAL: Routing Execution Protocol
 
 1. **MUST** complete routing BEFORE executing. Do NOT "do first, route later".
-2. **SHOULD** start from `MASTER-ROUTING.md` or `scripts/master-route.ps1` for PRIMARY; use this full matrix when ambiguous.
+2. **MUST** start from `scripts/master-route.ps1` (JSON). Use this matrix only when PRIMARY is ambiguous.
 3. **MUST** match dimensions (target type + user intent + toolchain) before entering a skill.
 4. If route not matched → propose new skill, do NOT force-fit.
 5. Cross-module tasks → combine skills per "Path Crossing" section.
@@ -58,7 +60,7 @@ Route tasks to the most appropriate skill module by target type, user intent, an
 | **CTF competition (full stack)** | `../CTF-Sandbox-Orchestrator/ctf-sandbox-orchestrator/SKILL.md` — master entry | Route to 40+ sub-skills by evidence |
 | **CTF ZIP / PKZIP archive** | `../CTF-Sandbox-Orchestrator/competition-zip-archive/SKILL.md` — legacy ZipCrypto + `bkcrack` known plaintext | Use before password brute force |
 | Web runtime / API | `../CTF-Sandbox-Orchestrator/competition-web-runtime/SKILL.md` | — |
-| Cloud / Container / K8s | `../CTF-Sandbox-Orchestrator/competition-agent-cloud/SKILL.md` | — |
+| Cloud / Container / K8s | `cloud-k8s/` | CTF-only extra: sidecar orchestrator after PRIMARY `ctf-sandbox/` |
 | Windows / AD / Identity | `../CTF-Sandbox-Orchestrator/competition-identity-windows/SKILL.md` | — |
 | Forensics / PCAP / Steganography | `../CTF-Sandbox-Orchestrator/competition-forensic-timeline/SKILL.md` | — |
 | Prompt injection / Agent | `../CTF-Sandbox-Orchestrator/competition-prompt-injection/SKILL.md` | — |
@@ -94,7 +96,7 @@ Route tasks to the most appropriate skill module by target type, user intent, an
 | "Python bytecode / pyc" | `reverse-engineering/languages.md` — Python section |
 | "symbol execution / angr" | `reverse-engineering/tools-dynamic.md` — angr section |
 | "patch environment / Node reproduce" | `js-reverse/references/env-patching.md` |
-| "CTF challenge / competition reverse" | `reverse-engineering/patterns-ctf*.md` |
+| "CTF challenge / competition reverse" | `ctf-sandbox/SKILL.md` → sidecar orchestrator |
 | "CTF ZIP / PKZIP / bkcrack / 压缩包明文攻击" | `../CTF-Sandbox-Orchestrator/competition-zip-archive/SKILL.md` |
 | "write report / documentation" | `docs-generator/` — technical documentation |
 | "review case / evidence chain / traceability" | `case-review/`: read-only Evidence Graph Review |
@@ -122,7 +124,7 @@ Route tasks to the most appropriate skill module by target type, user intent, an
 | "firmware / IoT / binwalk / ARM" | `reverse-engineering/platforms-hardware.md` |
 | "cryptography / AES / RSA" | `reverse-engineering/patterns*.md` — crypto pattern recognition |
 | "protocol reverse / Protobuf / custom protocol" | `reverse-engineering/platforms.md` |
-| "cloud security / container escape / K8s" | `../CTF-Sandbox-Orchestrator/competition-agent-cloud/SKILL.md` |
+| "cloud security / container escape / K8s" | `cloud-k8s/SKILL.md` |
 | "Prompt injection / AI security" | `llm-security/SKILL.md` — OWASP LLM + ASI Top 10 |
 | "internal network / lateral movement" | `pentest-tools/SKILL.md` + `references/network-attack-defense.md` |
 | "privilege escalation" | `pentest-tools/references/network-attack-defense.md` — escalation section |
@@ -143,8 +145,8 @@ Route tasks to the most appropriate skill module by target type, user intent, an
 | "red team / HW / attack exercise" | `attack-chain/SKILL.md` — full attack chain orchestration |
 | "initial breach / boundary breach" | `attack-chain/SKILL.md` — boundary breach phase |
 | "close-range pentest / BadUSB / WiFi phishing" | `attack-chain/SKILL.md` — close-range section |
-| "EDR bypass / evasion / AV bypass" | `attack-chain/SKILL.md` — EDR/AV evasion section |
-| "phishing / social engineering" | `attack-chain/SKILL.md` — phishing section |
+| "EDR bypass / evasion / AV bypass" | `edr-bypass-re/SKILL.md` |
+| "phishing / social engineering" | `email-security/SKILL.md` |
 | "supply chain attack" | `attack-chain/SKILL.md` — supply chain section |
 | "trace cleanup / anti-forensics" | `attack-chain/SKILL.md` — cleanup section |
 | "full pentest / end-to-end" | `attack-chain/SKILL.md` — full chain planning |
@@ -160,11 +162,11 @@ Route tasks to the most appropriate skill module by target type, user intent, an
 | "iOS reverse / IPA / Mach-O" | `mobile-reverse/SKILL.md` — class-dump/Hopper/Frida iOS |
 | "Objection / SSL Pinning bypass" | `mobile-reverse/SKILL.md` — dynamic instrumentation |
 | "YARA / malware detection rules" | `malware-analysis/SKILL.md` — YARA/Sigma/IOC |
-| "N-day / patch diff / CVE reproduction" | `binary-diff/SKILL.md` — ghidriff/Diaphora/DeepDiff |
+| "N-day / patch diff / CVE reproduction" | `patch-diff-exploit/SKILL.md` |
 | "MBA simplification / mixed boolean-arithmetic / 表达式化简" | `reverse-engineering/references/ollvm-deobfuscation.md` — SiMBA/D-810 |
 | "opaque predicate / 不透明谓词去除" | `reverse-engineering/references/ollvm-deobfuscation.md` — 符号执行去除 |
 | "Hikari deobfuscate / 字符串加密恢复" | `reverse-engineering/references/ollvm-deobfuscation.md` — Hikari 变种处理 |
-| "pwn / stack overflow / ROP / ret2libc" | `reverse-engineering/patterns-ctf*.md` + pwntools |
+| "pwn / stack overflow / ROP / ret2libc" | `pwn-chain/SKILL.md` |
 | "Agent not working / AI lazy / skip steps" | `llm-security/references/agent-obedience-engineering.md` |
 | "MSF stuck / orphan process / MSF protocol" | `pentest-tools/references/msf-protocol.md` |
 | "anonymize / placeholder / writeup desensitize" | `field-journal/anonymization.md` |

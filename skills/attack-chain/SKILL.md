@@ -42,7 +42,7 @@ description: Use for authorized multi-stage attack-path planning and orchestrati
 - 只做端口扫描 → 直接去 `pentest-tools/`
 - 只做 SQL 注入 → 直接去 `pentest-tools/`
 - 只做 APK 逆向 → 直接去 `apk-reverse/`
-- 只做域渗透 → 直接去 `pentest-tools/references/network-attack-defense.md`
+- 只做域渗透 → 直接去 `windows-ad/SKILL.md`
 
 ---
 
@@ -633,7 +633,7 @@ touch -t 202301010000 /path/to/file
 | 需求 | 路由到 |
 |------|--------|
 | Web 漏洞深度利用 | `pentest-tools/SKILL.md` |
-| 内网 AD 攻击详细步骤 | `pentest-tools/references/network-attack-defense.md` |
+| 内网 AD 攻击详细步骤 | `windows-ad/SKILL.md` |
 | 逆向分析恶意样本 | `reverse-engineering/SKILL.md` |
 | APK 逆向（移动端渗透） | `apk-reverse/SKILL.md` |
 | JS 前端签名绕过 | `js-reverse/SKILL.md` |

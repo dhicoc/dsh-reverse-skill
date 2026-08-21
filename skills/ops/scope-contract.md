@@ -1,16 +1,37 @@
 # 通用 Scope 契约（任务启动硬门槛）
 
-> **MUST**：任何安全/逆向/渗透任务在 **ACT 之前** 在用户项目或 `work/<case>/` 落地 `scope.md`。  
-> 无 scope → 只允许读文档/路由，**禁止** 对目标主动扫描、Hook、利用。  
+> **MUST**：任何安全/逆向/渗透任务在 **ACT 之前** 在当前用户分析项目的 `work/<case>/` 落地 `scope.md`。
+> 无 scope → 只允许读文档/路由，**禁止** 对目标主动扫描、Hook、利用。
 > 模板可复制；字段名保持英文键，便于脚本校验。
 
 ## 如何初始化
+
+Windows：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File skills\scripts\case-init.ps1 -Hint "<任务一句话>" -CaseName "my-case"
 # 默认产出：当前分析项目的 work/<case>/scope.md 等
 # 从其他目录调用 skill 时显式指定：-ProjectRoot "C:\path\to\analysis-project"
+
+# 合法本地离线样本：auth granted + offline + explicit sample → ready_for_act=true
+powershell -NoProfile -ExecutionPolicy Bypass -File skills\scripts\case-init.ps1 `
+  -Hint "offline apk" -CaseName "my-sample" -Preset offline-sample -Sample ".\app.apk"
 ```
+
+Linux / macOS / Kali：
+
+```bash
+bash skills/scripts/case-init.sh --hint "<任务一句话>" --case-name "my-case"
+# 默认产出：caller 当前分析项目的 work/<case>/scope.md 等
+# 从其他目录调用时显式指定：--project-root "/path/to/analysis-project"
+
+# 合法本地离线样本
+bash skills/scripts/case-init.sh \
+  --hint "offline apk" --case-name "my-sample" \
+  --preset offline-sample --sample ./app.apk
+```
+
+`-PackageRoot` / `--package-root` 保留为兼容参数；新流程应以 `ProjectRoot` / `--project-root` 表示 case artifact 的归属项目。
 
 ## scope.md 完整模板
 
@@ -21,6 +42,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File skills\scripts\case-init.ps1
 - case_id: {YYYYMMDD-short}
 - created: {ISO-8601}
 - operator: {name or local}
+- project_root: {caller analysis project}
 - primary_skill: {from master-route}
 - lead_role: lead   # see ops/role-map.md
 - specialist_roles: []  # e.g. cie, cpe, cre
@@ -73,10 +95,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File skills\scripts\case-init.ps1
 ```text
 RULES / MASTER-ROUTING / SKILL:
   1) master-route → PRIMARY
-  2) case-init 或手写 scope.md
+  2) 平台原生 case-init 或手写 scope.md
   3) auth 未 granted → STOP，只允许补授权材料
   4) ready_for_act = true → 打开 PRIMARY SKILL.md → ACT
 ```
+
+`case-guard -Force` / `case-guard --force` 是兼容参数，**不得**绕过 `auth.status`、合法 scope、network profile 或 `ready_for_act` 硬门。
 
 ## network_profile 速查
 
