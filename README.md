@@ -8,15 +8,15 @@
 
 
 > **reverse-skill 的完整 DeepSeek Harness（dsh）插件版。**
-> 把上游 [`zhaoxuya520/reverse-skill`](https://github.com/zhaoxuya520/reverse-skill)（27k★，MIT）全部 **86 个 SKILL.md** 原样封装成一个 dsh Cordis 插件，随包分发、随插件加载，无需手动维护候选清单。
+> 把上游 [`zhaoxuya520/reverse-skill`](https://github.com/zhaoxuya520/reverse-skill)（27k★，MIT）全部 **87 个 SKILL.md** 原样封装成一个 dsh Cordis 插件，随包分发、随插件加载，无需手动维护候选清单。
 
 ---
 
 ## 这是什么
 
-- **完整移植**：86 个 skills = `skills/` 下 44 个（领域技能经去重后的真实 SKILL.md 数）+ `CTF-Sandbox-Orchestrator/` 下 42 个（CTF 赛道技能）。与上游一一对应，不裁剪、不挑捡。
+- **完整移植**：87 个 skills = `skills/` 下 45 个（领域技能经去重后的真实 SKILL.md 数）+ `CTF-Sandbox-Orchestrator/` 下 42 个（CTF 赛道技能）。与上游一一对应，不裁剪、不挑捡。
 - **插件形态（你选的）**：以 dsh 一等公民的 `skill` seam（`ctx.skills`）注册一个 provider，harness 启动时自动把全部技能注入可用技能库。
-- **对比已有不完全移植**：社区里的 `dsh-reverse-security` 只移植了 45 个、且是 preset-only（无 Cordis 插件）。本仓库补齐到 86 个并提供正式插件入口。
+- **对比已有不完全移植**：社区里的 `dsh-reverse-security` 只移植了 45 个、且是 preset-only（无 Cordis 插件）。本仓库补齐到 87 个并提供正式插件入口。
 
 ### 适用范围（请遵守）
 
@@ -30,7 +30,7 @@
 dsh-reverse-skill/
 ├── src/
 │   └── index.ts                 # 数据驱动的 Cordis 插件：递归扫描并注册全部 SKILL.md
-├── skills/                      # 44 个领域技能（上游 skills/ 1:1 复制）
+├── skills/                      # 45 个领域技能（上游 skills/ 1:1 复制）
 │   ├── SKILL.md                 # 路由技能 reverse-skill-router（上游根 SKILL.md）
 │   ├── pentest-tools/           # 含嵌套子技能 src-hunter 等
 │   └── reverse-engineering/     # 含嵌套子技能 dsl-vm-reverse 等
@@ -75,7 +75,7 @@ npm run build        # tsc → 生成 lib/ 与 lib/types/
 dsh plugin add github:dhicoc/dsh-reverse-skill
 ```
 
-安装后 dsh 会读取 `cordis.patch.yml` 把 `reverse-skill` 这个 Cordis 插件插入当前 profile，启动时自动注册 86 个技能。若你想在 profile / package 配置里手动引用，包名是 `@dhicoc/dsh-reverse-skill`：
+安装后 dsh 会读取 `cordis.patch.yml` 把 `reverse-skill` 这个 Cordis 插件插入当前 profile，启动时自动注册 87 个技能。若你想在 profile / package 配置里手动引用，包名是 `@dhicoc/dsh-reverse-skill`：
 
 ```yaml
 # dsh 配置（示例，键名可能因版本而异）
@@ -83,7 +83,7 @@ plugins:
   - "@dhicoc/dsh-reverse-skill"
 ```
 
-加载后，插件在 `apply(ctx)` 里调用 `ctx.skills.registerProvider(...)`，把 86 个技能注册进 `ctx.skills`。模型可通过 `ctx.skills` → `tool-skill` 自动调用，用户也可通过技能名手动调用（受各 SKILL.md 的 `user-invocable` 控制）。
+加载后，插件在 `apply(ctx)` 里调用 `ctx.skills.registerProvider(...)`，把 87 个技能注册进 `ctx.skills`。模型可通过 `ctx.skills` → `tool-skill` 自动调用，用户也可通过技能名手动调用（受各 SKILL.md 的 `user-invocable` 控制）。
 
 ### 3. （可选）非插件回退：直接当 preset 用
 
@@ -120,7 +120,7 @@ skills:
 npm test
 ```
 
-该命令会重新编译插件，并通过实际注册的 `SkillProvider` 断言 86 个已打包技能都能被 `list()` 发现、名称无重复且均能按需 `get()` 返回非空正文。测试还会临时创建一个带 UTF-8 BOM 和 CRLF 的 `SKILL.md`，确认扫描器不会静默跳过此类文件；fixture 在测试结束后会自动删除。发布工作流也会在 `npm publish` 前运行同一检查。
+该命令会重新编译插件，并通过实际注册的 `SkillProvider` 断言 87 个已打包技能都能被 `list()` 发现、名称无重复且均能按需 `get()` 返回非空正文。测试还会临时创建一个带 UTF-8 BOM 和 CRLF 的 `SKILL.md`，确认扫描器不会静默跳过此类文件；fixture 在测试结束后会自动删除。发布工作流也会在 `npm publish` 前运行同一检查。
 
 ---
 
