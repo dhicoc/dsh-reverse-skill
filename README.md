@@ -12,10 +12,6 @@
 
 ---
 
-## 这是什么
-
-- **完整移植**：87 个 skills = `skills/` 下 45 个（领域技能经去重后的真实 SKILL.md 数）+ `CTF-Sandbox-Orchestrator/` 下 42 个（CTF 赛道技能）。与上游一一对应，不裁剪、不挑捡。
-- **插件形态（你选的）**：以 dsh 一等公民的 `skill` seam（`ctx.skills`）注册一个 provider，harness 启动时自动把全部技能注入可用技能库。
 
 ### 适用范围（请遵守）
 
