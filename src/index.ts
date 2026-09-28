@@ -7,7 +7,23 @@
  * too), exposes every SKILL.md through the `ctx.skills` seam, and serves the full
  * body on demand. No manual candidate list to keep in sync with the source pack.
  *
- * @module @reverse-skill/dsh-reverse-skill
+ * Adapted to the DSH 0.1.7-rc.2 skill seam (`@deepseek-ai/dsh-skill` ^0.1.7-alpha.1):
+ *
+ *   - `registerProvider` now hands the factory a `SkillProviderControl`.
+ *     `control.signal` is the registration's lifecycle signal and is honoured
+ *     alongside the per-call `options.signal`; `control.invalidate()` is the
+ *     provider-to-registry notification and is deliberately never called, because
+ *     this pack's catalog is immutable for the lifetime of a registration.
+ *   - `list()` may return a `SkillProviderObservation` instead of a bare array.
+ *     That is used to report genuinely partial discovery: if a `readdir` under
+ *     either root fails, the observation reports `complete: false` so the registry
+ *     never caches a truncated catalog as authoritative.
+ *   - `path` moved from `SkillCandidate` / `SkillDefinition` up to `SkillSummary`,
+ *     so every emitted summary now carries its absolute instruction-file path.
+ *   - `SkillService` was renamed to `SkillRegistry`, and the built-in local provider
+ *     package to `dsh-skill-filesystem`. Neither name is referenced here.
+ *
+ * @module @dhicoc/dsh-reverse-skill
  */
 
 import { readFile, readdir } from 'node:fs/promises'
@@ -17,7 +33,10 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {
   SkillCandidate,
   SkillDefinition,
+  SkillLookupOptions,
   SkillProvider,
+  SkillProviderControl,
+  SkillProviderObservation,
 } from '@deepseek-ai/dsh-skill'
 
 // Repo layout: src/index.ts -> lib/index.js ; skills/ and CTF-Sandbox-Orchestrator/
@@ -26,11 +45,21 @@ import type {
 // dirname() — `new URL('../skills/', import.meta.url)` already ends in a directory name,
 // so dirname() would wrongly strip it and leave the package root (which also contains
 // node_modules and would double-count every SKILL.md). This holds for both local dev
-// (dsh-reverse-skill/lib) and the published package (node_modules/@reverse-skill/dsh-reverse-skill/lib).
+// (dsh-reverse-skill/lib) and the published package (node_modules/@dhicoc/dsh-reverse-skill/lib).
 const SKILLS_ROOT = fileURLToPath(new URL('../skills', import.meta.url))
 const CTF_ROOT = fileURLToPath(new URL('../CTF-Sandbox-Orchestrator', import.meta.url))
 
 const PROVIDER_NAME = 'reverse-skill'
+
+/**
+ * Stop discovery when either the registration or the caller has been cancelled,
+ * so a disposed plugin or a superseded lookup cannot keep walking the tree.
+ */
+function throwIfAborted(registration: AbortSignal, options: SkillLookupOptions): void {
+  if (registration.aborted) throw registration.reason
+  const { signal } = options
+  if (signal?.aborted) throw signal.reason
+}
 
 /** Minimal YAML-frontmatter reader — enough for name / description / user-invocable. */
 function parseFrontmatter(text: string): { fm: Record<string, string>; body: string } {
@@ -70,71 +99,108 @@ interface Collected {
   body: string
 }
 
-async function collect(root: string): Promise<Collected[]> {
-  const out: Collected[] = []
+/** Recursively collect every parseable SKILL.md, reporting whether the walk was exhaustive. */
+async function collect(
+  root: string,
+  registration: AbortSignal,
+  options: SkillLookupOptions,
+): Promise<{ items: Collected[]; complete: boolean }> {
+  const items: Collected[] = []
+  let complete = true
   async function walk(dir: string): Promise<void> {
+    throwIfAborted(registration, options)
     let entries
     try {
       entries = await readdir(dir, { withFileTypes: true })
     } catch {
+      // An unreadable directory means this catalog is a partial view; surface that
+      // through the observation instead of pretending discovery succeeded.
+      complete = false
       return
     }
     for (const e of entries) {
+      throwIfAborted(registration, options)
       const p = join(dir, e.name)
       if (e.isDirectory()) await walk(p)
       else if (e.name === 'SKILL.md') {
         const text = await readFile(p, 'utf8')
         const { fm, body } = parseFrontmatter(text)
-        if (fm['name']) out.push({ path: p, fm, body })
+        if (fm['name']) items.push({ path: p, fm, body })
       }
     }
   }
   await walk(root)
-  return out
+  return { items, complete }
 }
 
-let CACHE: SkillCandidate[] | null = null
-
-async function buildCandidates(): Promise<SkillCandidate[]> {
-  if (CACHE) return CACHE
-  const all = [...(await collect(SKILLS_ROOT)), ...(await collect(CTF_ROOT))]
-  const cands: SkillCandidate[] = all.map(({ path, fm }) => {
-    const userInv = fm['user-invocable']
-    const candidate: SkillCandidate = {
-      name: fm['name'],
-      description: fm['description'] ?? '',
-      invocation: {
-        modelInvocable: true,
-        userInvocable: userInv === undefined ? true : userInv !== 'false',
-      },
-      provider: PROVIDER_NAME,
-      source: 'bundled',
-      resourceBase: { kind: 'directory', path: dirname(path) },
-      rank: 0,
-      locator: pathToFileURL(path),
-    } as SkillCandidate
-    return candidate
-  })
-  CACHE = cands
-  return cands
+interface Catalog {
+  candidates: readonly SkillCandidate[]
+  complete: boolean
 }
 
-const provider: SkillProvider = {
-  name: PROVIDER_NAME,
-  list: () => buildCandidates(),
-  async get(candidate): Promise<SkillDefinition> {
-    const text = await readFile(candidate.locator as URL, 'utf8')
-    const { body } = parseFrontmatter(text)
-    return {
-      name: candidate.name,
-      description: candidate.description,
-      invocation: candidate.invocation,
-      provider: candidate.provider,
-      source: candidate.source,
-      resourceBase: candidate.resourceBase,
-      content: body,
-    } as SkillDefinition
-  },
+/**
+ * One provider instance per registration. The catalog cache lives in this closure
+ * rather than at module scope, so an HMR remount or a second registration can never
+ * reuse candidates built by a provider whose fiber was already disposed.
+ */
+function createProvider(control: SkillProviderControl): SkillProvider {
+  let cache: Catalog | null = null
+
+  async function build(options: SkillLookupOptions): Promise<Catalog> {
+    if (cache !== null) return cache
+    const registration = control.signal
+    const skills = await collect(SKILLS_ROOT, registration, options)
+    const ctf = await collect(CTF_ROOT, registration, options)
+    const candidates: SkillCandidate[] = [...skills.items, ...ctf.items].map(({ path, fm }) => {
+      const userInv = fm['user-invocable']
+      return {
+        name: fm['name'],
+        description: fm['description'] ?? '',
+        invocation: {
+          modelInvocable: true,
+          userInvocable: userInv === undefined ? true : userInv !== 'false',
+        },
+        provider: PROVIDER_NAME,
+        source: 'bundled',
+        resourceBase: { kind: 'directory', path: dirname(path) },
+        path,
+        rank: 0,
+        locator: pathToFileURL(path),
+      }
+    })
+    const catalog: Catalog = { candidates, complete: skills.complete && ctf.complete }
+    // Only memoize a trustworthy catalog; a partial walk is retried on the next list().
+    if (catalog.complete) cache = catalog
+    return catalog
+  }
+
+  return {
+    name: PROVIDER_NAME,
+    async list(options: SkillLookupOptions = {}): Promise<SkillProviderObservation> {
+      throwIfAborted(control.signal, options)
+      const catalog = await build(options)
+      return { candidates: catalog.candidates, complete: catalog.complete }
+    },
+    async get(
+      candidate: SkillCandidate,
+      options: SkillLookupOptions = {},
+    ): Promise<SkillDefinition | undefined> {
+      throwIfAborted(control.signal, options)
+      const source = candidate.path ?? candidate.locator
+      const text = await readFile(source as string | URL, 'utf8')
+      const { body } = parseFrontmatter(text)
+      return {
+        name: candidate.name,
+        description: candidate.description,
+        invocation: candidate.invocation,
+        provider: candidate.provider,
+        source: candidate.source,
+        resourceBase: candidate.resourceBase,
+        path: candidate.path,
+        content: body,
+      }
+    },
+  }
 }
 
 /** Cordis plugin name. */
@@ -144,5 +210,5 @@ export const inject = ['skills']
 
 /** Register the bundled reverse-skill provider on `ctx.skills`. */
 export function apply(ctx: Context): void {
-  ctx.skills.registerProvider(() => provider)
+  ctx.skills.registerProvider((control) => createProvider(control))
 }
