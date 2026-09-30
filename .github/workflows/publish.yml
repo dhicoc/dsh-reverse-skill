@@ -1,8 +1,17 @@
 name: Publish to npm
 
-# 自动发布到 npm。两种触发方式（任一即可）：
+# 自动把包提交到 npm 的 staged publishing 队列。两种触发方式（任一即可）：
 #   1. 在 GitHub 上创建一个 Release（published）——推荐，方便写变更说明；
 #   2. 推送一个形如 v1.2.3 的 tag。
+#
+# 重要：本包在 package.json 中声明了 contentPolicy: dual-use（见 DISCLOSURE）。
+# 按 npm 的 Dual-Use Content Policy，dual-use 包**不允许**用 bypass-2FA token
+# 直接 `npm publish`。必须先 staged publishing，再由维护者完成 2FA 提升。
+# 因此本 workflow 只负责 stage，最后一步 approve 由维护者在本地执行：
+#
+#   npm stage list @dhicoc/dsh-reverse-skill
+#   npm stage approve <stage-id>
+#
 on:
   release:
     types: [published]
@@ -11,9 +20,9 @@ on:
       - 'v*'
 
 jobs:
-  publish:
+  stage:
     runs-on: ubuntu-latest
-    # 只需读代码；发布凭证通过 NODE_AUTH_TOKEN 传入，不需要写权限。
+    # 只需读代码；凭证通过 NODE_AUTH_TOKEN 传入，不需要写权限。
     permissions:
       contents: read
     steps:
@@ -26,7 +35,11 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
-      # lib/ 已随仓库提交；npm install 仅装 devDependencies 以便 prepare 重跑。
+      # staged publishing 需要 npm >= 11.6；Node 22 自带的 npm 10.x 不支持。
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
+      # lib/ 已随仓库提交；npm install 仅装 devDependencies 以便 prepublishOnly 重跑 tsc。
       # 改了 package name 后 package-lock.json 会与 package.json 不同步，故用 npm install（会自动 reconcile），不用 npm ci。
       - name: Install dependencies
         run: npm install
@@ -34,7 +47,7 @@ jobs:
       - name: Verify bundled skill provider
         run: npm test
 
-      - name: Publish to npm
-        run: npm publish --access public
+      - name: Stage release on npm
+        run: npm stage publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

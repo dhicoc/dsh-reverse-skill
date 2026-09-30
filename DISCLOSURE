@@ -1,0 +1,76 @@
+DISCLOSURE
+
+Package:  @dhicoc/dsh-reverse-skill
+Purpose:  DeepSeek Harness (dsh) plugin that packages the upstream reverse-skill
+          skill pack (87 SKILL.md documents) as a Cordis skill provider.
+Upstream: https://github.com/zhaoxuya520/reverse-skill (MIT)
+
+1. NATURE OF THE CONTENT
+
+This package is a documentation-and-reference distribution. It contains:
+
+  - 87 SKILL.md instruction documents covering reverse engineering,
+    penetration testing, CTF, binary / firmware / mobile / JavaScript
+    analysis, malware analysis, threat intelligence and exploit-chain
+    reasoning;
+  - supporting reference material, including an inert JSON catalogue of
+    web-injection test payload strings and accompanying technique notes;
+  - auxiliary helper scripts (PowerShell, POSIX shell and Python) that act as
+    thin wrappers around well-known, independently distributed security tools
+    such as apktool, jadx, Frida, IDA Pro and radare2.
+
+The only first-party executable code is a small TypeScript provider
+(~150 lines, shipped as lib/index.js) that reads the bundled SKILL.md files
+from local disk and registers their name, description and body with the dsh
+skill registry. It performs no other work.
+
+2. WHY THIS IS DUAL-USE
+
+The techniques and reference data bundled here serve legitimate defensive and
+offensive security work, and could equally be misused. Automated scanning may
+reasonably flag this material as resembling malware. It is nonetheless a
+legitimate, publicly sourced security-research skill pack, distributed for
+authorized use.
+
+3. INTENDED LEGITIMATE USE
+
+  - Authorized penetration testing and red-team engagements;
+  - CTF competitions and isolated lab environments;
+  - Security research, vulnerability discovery and coordinated disclosure;
+  - Malware analysis, digital forensics and incident response;
+  - Security education and professional training.
+
+4. AUTHORIZATION REQUIREMENT
+
+Users must apply these skills and scripts only against systems they own or for
+which they hold explicit, documented authorization. Users are solely
+responsible for complying with applicable law, engagement scope and rules of
+engagement, and for maintaining audit logging appropriate to their
+environment. Unauthorized use is neither intended nor supported.
+
+5. SAFETY CHARACTERISTICS
+
+  - No install-time execution. package.json declares no preinstall, install,
+    postinstall or prepare hook. Installing this package from npm executes
+    nothing.
+  - No compiled artifacts. The package contains no .exe, .dll, .so, .elf,
+    .bin or other binary files. It ships text files only.
+  - No autonomous behavior. Nothing in this package opens network
+    connections, contacts command-and-control infrastructure, establishes
+    persistence, escalates privileges or accesses credentials. The plugin
+    only reads local Markdown files.
+  - Scripts are inert until explicitly invoked. The bundled helper scripts run
+    only when a user deliberately executes them, and they merely drive the
+    third-party tools listed in section 1. This package itself performs no
+    automated scanning, exploitation or lateral movement, and therefore
+    imposes no rate limiting of its own.
+  - Documented, unmodified upstream provenance. All bundled content
+    originates from the public, MIT-licensed reverse-skill project and is
+    redistributed without modification.
+
+6. REPORTING AND CONTACT
+
+Security concerns, false-positive questions or abuse reports:
+  https://github.com/dhicoc/dsh-reverse-skill/issues
+
+Last updated: 2026-09-30
