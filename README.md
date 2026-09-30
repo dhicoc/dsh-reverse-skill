@@ -7,6 +7,11 @@
 [![Awesome](https://awesome.re/badge.svg)](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)
 
 
+> **安装：请从 GitHub 安装，不要从 npm 安装。**
+> npm registry 上的 `@dhicoc/dsh-reverse-skill` 停留在 **1.0.x**，其 peer 依赖（`@deepseek-ai/dsh-skill ^0.0.1-rc.1`）与 DSH 0.2.0-rc.2 不兼容，从 npm 安装会被安装器判为「不兼容，可能导致崩溃」。本仓库 `main` 分支始终是与当前 DSH 兼容的版本。
+>
+> 安装命令：`dsh plugin add github:dhicoc/dsh-reverse-skill`
+
 > **reverse-skill 的完整 DeepSeek Harness（dsh）插件版。**
 > 把上游 [`zhaoxuya520/reverse-skill`](https://github.com/zhaoxuya520/reverse-skill)（27k★，MIT）全部 **88 个 SKILL.md** 原样封装成一个 dsh Cordis 插件，随包分发、随插件加载，无需手动维护候选清单。
 
@@ -45,16 +50,15 @@ dsh-reverse-skill/
 
 ## 安装（插件形态）
 
-本仓库已声明 `dsh.bundle` manifest（见 `cordis.patch.yml`），因此可直接用一行命令安装并激活：
+**请从 GitHub 安装，不要从 npm 安装**——原因见文首。本仓库已声明 `dsh.bundle` manifest（见 `cordis.patch.yml`），一行命令即可安装并激活：
 
 ```bash
-# 从 GitHub 安装并激活
 dsh plugin add github:dhicoc/dsh-reverse-skill
 ```
 
-> **安装通道说明**：请使用上面的 GitHub 通道。npm registry 上的 `@dhicoc/dsh-reverse-skill` 停留在 **1.0.x**——其 peer 依赖指向已淘汰的 `@deepseek-ai/dsh-skill ^0.0.1-rc.1`，与 DSH 0.2.0-rc.2 不兼容；后续版本受 npm 发布前扫描策略限制，未能更新到 registry。本仓库 `main` 分支始终是与当前 DSH 兼容的最新版本。
+`npm install @dhicoc/dsh-reverse-skill` **不可用**：registry 上的 1.0.x 与当前 DSH 不兼容，且此包已不再向 npm 发布新版本（受 npm 发布前扫描策略限制）。
 
-安装后 dsh 会读取 `cordis.patch.yml` 把 `reverse-skill` 这个 Cordis 插件插入当前 profile，启动时自动注册 88 个技能。若你想在 profile / package 配置里手动引用，包名是 `@dhicoc/dsh-reverse-skill`：
+安装后 dsh 会读取 `cordis.patch.yml` 把 `reverse-skill` 这个 Cordis 插件插入当前 profile，启动时自动注册 88 个技能。若你想在 profile / package 配置里手动引用，名称是 `@dhicoc/dsh-reverse-skill`（这是安装后的引用名，**不是**可从 npm 安装的包名）：
 
 ```yaml
 # dsh 配置（示例，键名可能因版本而异）
@@ -66,7 +70,7 @@ plugins:
 
 ### 从源码构建（可选）
 
-仅在需要自行编译 `lib/` 时使用：
+`lib/` 已随仓库提交，从 GitHub 安装**无需**构建。仅在你需要自行编译时才执行下面两条命令（这里的 `npm install` 只装开发依赖，与安装插件无关）：
 
 ```bash
 # 安装 peer 依赖（cordis / dsh-skill 由 dsh 运行时提供，这里用于类型与构建）
@@ -120,7 +124,7 @@ skills:
 npm test
 ```
 
-该命令会重新编译插件，并通过实际注册的 `SkillProvider` 断言 88 个已打包技能都能被 `list()` 发现、名称无重复且均能按需 `get()` 返回非空正文。测试还会临时创建一个带 UTF-8 BOM 和 CRLF 的 `SKILL.md`，确认扫描器不会静默跳过此类文件；fixture 在测试结束后会自动删除。发布工作流也会在 `npm stage publish` 前运行同一检查。
+该命令会重新编译插件，并通过实际注册的 `SkillProvider` 断言 88 个已打包技能都能被 `list()` 发现、名称无重复且均能按需 `get()` 返回非空正文。测试还会临时创建一个带 UTF-8 BOM 和 CRLF 的 `SKILL.md`，确认扫描器不会静默跳过此类文件；fixture 在测试结束后会自动删除。
 
 ---
 
@@ -131,7 +135,7 @@ npm test
 - **前导 matter 仅依赖 `name` / `description` / `user-invocable`**：本仓库 scanner 只读这三个字段，上游原始文件原样打包（CRLF / BOM 在运行时归一化），无需改写；其余字段作为技能正文一并随 `get()` 返回。
 - **MCP 工具（如 burp-mcp）需另行配置**：技能正文里引用的外部 MCP server 不在本插件范围内，请按 dsh 的 `mcp.servers` 自行接入。
 - **文档链接已重写**：正文内相对链接已改为 `../`（及 CTF 相关为 `../../CTF-Sandbox-Orchestrator/`），以适配 dsh 扁平挂载路径。
-- **npm registry 版本滞后**：见上文「安装通道说明」。本仓库以 GitHub 为分发通道。
+- **只通过 GitHub 分发**：npm registry 上的 1.0.x 与当前 DSH 不兼容，请勿从 npm 安装；更新到新版本的方式是重新执行一次 GitHub 安装命令。
 
 
 ## License
