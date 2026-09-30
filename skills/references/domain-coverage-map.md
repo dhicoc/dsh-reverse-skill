@@ -27,6 +27,7 @@
 | Wi-Fi / 无线 | `wifi-wireless/` | |
 | OT / ICS | `ot-ics/` | 被动优先；写寄存器默认禁止 |
 | macOS | `macos-reverse/` | iOS 仍走 mobile-reverse |
+| Binary Ninja | `binary-ninja-reverse/` | 商业 GUI/Python API；社区 MCP 仅显式启用且默认回环绑定 |
 | 厚客户端 | `thick-client/` | |
 | Go / Rust 二进制 | `go-rust-reverse/` | |
 | 硬件调试口 | `hardware-security/` | 交接 firmware-pentest |

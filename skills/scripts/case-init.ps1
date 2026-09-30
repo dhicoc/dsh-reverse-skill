@@ -76,7 +76,7 @@ if ($presetNormalized -in @('offline-sample', 'own-sample', 'local-sample')) {
     if ([string]::IsNullOrWhiteSpace($NetworkProfile)) { $NetworkProfile = 'lab_only' }
     if ([string]::IsNullOrWhiteSpace($EvidenceOfAuth)) { $EvidenceOfAuth = 'preset:own-system/lab' }
 } elseif (-not [string]::IsNullOrWhiteSpace($Preset)) {
-    Write-Host ("WARN: unknown -Preset '{0}' (allowed: offline-sample|ctf-public|own-system)" -f $Preset) -ForegroundColor Yellow
+    throw ("Invalid -Preset '{0}'. Allowed: offline-sample|ctf-public|own-system" -f $Preset)
 }
 
 if (-not $CaseName) {

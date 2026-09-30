@@ -8,7 +8,7 @@
 
 
 > **reverse-skill 的完整 DeepSeek Harness（dsh）插件版。**
-> 把上游 [`zhaoxuya520/reverse-skill`](https://github.com/zhaoxuya520/reverse-skill)（27k★，MIT）全部 **87 个 SKILL.md** 原样封装成一个 dsh Cordis 插件，随包分发、随插件加载，无需手动维护候选清单。
+> 把上游 [`zhaoxuya520/reverse-skill`](https://github.com/zhaoxuya520/reverse-skill)（27k★，MIT）全部 **88 个 SKILL.md** 原样封装成一个 dsh Cordis 插件，随包分发、随插件加载，无需手动维护候选清单。
 
 ---
 
@@ -27,7 +27,7 @@
 dsh-reverse-skill/
 ├── src/
 │   └── index.ts                 # 数据驱动的 Cordis 插件：递归扫描并注册全部 SKILL.md
-├── skills/                      # 45 个领域技能（上游 skills/ 1:1 复制）
+├── skills/                      # 46 个领域技能（上游 skills/ 1:1 复制）
 │   ├── SKILL.md                 # 路由技能 reverse-skill-router（上游根 SKILL.md）
 │   ├── pentest-tools/           # 含嵌套子技能 src-hunter 等
 │   └── reverse-engineering/     # 含嵌套子技能 dsl-vm-reverse 等
@@ -54,7 +54,7 @@ dsh plugin add github:dhicoc/dsh-reverse-skill
 
 > **安装通道说明**：请使用上面的 GitHub 通道。npm registry 上的 `@dhicoc/dsh-reverse-skill` 停留在 **1.0.x**——其 peer 依赖指向已淘汰的 `@deepseek-ai/dsh-skill ^0.0.1-rc.1`，与 DSH 0.2.0-rc.2 不兼容；后续版本受 npm 发布前扫描策略限制，未能更新到 registry。本仓库 `main` 分支始终是与当前 DSH 兼容的最新版本。
 
-安装后 dsh 会读取 `cordis.patch.yml` 把 `reverse-skill` 这个 Cordis 插件插入当前 profile，启动时自动注册 87 个技能。若你想在 profile / package 配置里手动引用，包名是 `@dhicoc/dsh-reverse-skill`：
+安装后 dsh 会读取 `cordis.patch.yml` 把 `reverse-skill` 这个 Cordis 插件插入当前 profile，启动时自动注册 88 个技能。若你想在 profile / package 配置里手动引用，包名是 `@dhicoc/dsh-reverse-skill`：
 
 ```yaml
 # dsh 配置（示例，键名可能因版本而异）
@@ -62,7 +62,7 @@ plugins:
   - "@dhicoc/dsh-reverse-skill"
 ```
 
-加载后，插件在 `apply(ctx)` 里调用 `ctx.skills.registerProvider(...)`，把 87 个技能注册进 `ctx.skills`。模型可通过 `ctx.skills` → `tool-skill` 自动调用，用户也可通过技能名手动调用（受各 SKILL.md 的 `user-invocable` 控制）。
+加载后，插件在 `apply(ctx)` 里调用 `ctx.skills.registerProvider(...)`，把 88 个技能注册进 `ctx.skills`。模型可通过 `ctx.skills` → `tool-skill` 自动调用，用户也可通过技能名手动调用（受各 SKILL.md 的 `user-invocable` 控制）。
 
 ### 从源码构建（可选）
 
@@ -120,7 +120,7 @@ skills:
 npm test
 ```
 
-该命令会重新编译插件，并通过实际注册的 `SkillProvider` 断言 87 个已打包技能都能被 `list()` 发现、名称无重复且均能按需 `get()` 返回非空正文。测试还会临时创建一个带 UTF-8 BOM 和 CRLF 的 `SKILL.md`，确认扫描器不会静默跳过此类文件；fixture 在测试结束后会自动删除。发布工作流也会在 `npm stage publish` 前运行同一检查。
+该命令会重新编译插件，并通过实际注册的 `SkillProvider` 断言 88 个已打包技能都能被 `list()` 发现、名称无重复且均能按需 `get()` 返回非空正文。测试还会临时创建一个带 UTF-8 BOM 和 CRLF 的 `SKILL.md`，确认扫描器不会静默跳过此类文件；fixture 在测试结束后会自动删除。发布工作流也会在 `npm stage publish` 前运行同一检查。
 
 ---
 

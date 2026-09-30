@@ -56,7 +56,8 @@ description: |
    - 第一次 `open.ps1` 超时后，idalib 的 python worker 子进程可能变成孤儿，咬着 `.id0`/`.id1`/`.nam` 不放
    - 后续任何工具或手动拖入 IDA GUI 都会报"权限不足"
    - **禁止** `taskkill /F /T` 杀进程树——`/T` 会把 GUI `ida.exe` 子进程一起干掉
-   - **解决办法**：`start.ps1` 只在端口无人监听、或 `tools/list` 快速返回但缺 `py_eval`（旧 supervisor）时替换 managed supervisor；RPC 超时且 13337 仍在听视为忙，不杀
+   - **解决办法**：`start.ps1` 只在端口无人监听、或 `tools/list` 快速返回但缺 `py_eval`（旧 supervisor）时替换 managed supervisor；RPC 超时且 13337 仍在听视为忙，不杀。开库时 `open.ps1` 写 `opening.lock`，watchdog 不得 `-Force`
+   - **死锁例外**：`tools/list` **连续失败超过 3 分钟**（按 last-healthy 时间戳，不是进程创建时间），且没有 in-flight `opening.lock`、不是 GUI 占端口时，才 `-Force` 替换 supervisor，仍不杀 `ida.exe`
    - **兜底**：`open.ps1` 检测到旧库被锁自动复制到 Temp 并加 GUID 前缀
 
 8. **带自动分析打开看起来像卡死**
@@ -69,7 +70,12 @@ description: |
    - Cursor/Claude 的 `type: http` 不会代为拉起进程；旧计划任务只在登录时跑一次
    - `pythonw` 无控制台，崩溃时 Application 日志也是空的
    - **解决办法**：`start.ps1` 默认健康则复用；`watchdog.ps1` 每分钟巡检；日志在 `%LOCALAPPDATA%\reverse-skill\ida-mcp\`
-   - 安装：`scripts/install-autostart.ps1`。Cursor 若启动时端口还没起来，仍需在 MCP 面板手动刷新一次
+   - 安装：`scripts/install-autostart.ps1`。HTTP 客户端若启动时端口还没起来，仍需在 MCP 面板手动刷新一次
+
+10. **Streamable HTTP GET `/mcp` 会卡住单线程 supervisor**
+   - 部分 HTTP MCP 客户端会对 `/mcp` 发长连接 GET（SSE）。stock `idalib_supervisor` 用 `background=False` 的 `HTTPServer`，一次只处理一个请求
+   - 结果：`tools/list` 超时，客户端把 `idapro` 标成 error
+   - **解决办法**：`run-supervisor.py` 把 HTTP 换成 `ThreadingHTTPServer` 并接受 GET `/mcp`；补丁失败则跳过并仍启动 supervisor。卡住时用 `scripts/recover.ps1`（立刻 `-Force`）
 
 ### 工作流程原则
 
@@ -89,8 +95,9 @@ description: |
 - 自动解析 `IDADIR`（环境变量 / 便携版桌面路径 / 常见安装路径）
 - 优先用 IDA 自带 `Python314\python.exe -m ida_pro_mcp.idalib_supervisor`
 - 默认先探测 `http://127.0.0.1:13337/mcp`，健康则输出 `OK:<n>:reuse` 并退出
-- 13337 在听但 `tools/list` 超时 → `WARN:busy` / `OK:busy:reuse`，**不杀**（supervisor 单线程，开库时无法回包）
-- 仅在端口无人监听、或快速返回且缺 `py_eval` 时替换 managed supervisor；**永不杀 `ida.exe`，不用 `taskkill /T`**
+- 13337 在听但 `tools/list` 超时 → `WARN:busy` / `OK:busy:reuse`，**不杀**（开库或 GUI 占用时无法回包）
+- `tools/list` **连续失败超过 3 分钟**（last-healthy 时间戳）且无 `opening.lock` → 视为死锁，输出 `INFO:deadlock` 并 `-Force` 替换 supervisor。进行中的 `idb_open` 和 GUI 不会走这条路径
+- 仅在端口无人监听、缺 `py_eval`、或上述死锁时替换 managed supervisor；**永不杀 `ida.exe`，不用 `taskkill /T`**
 - GUI 占用 13337 时输出 `WARN:gui_busy` 并退出，不另起 supervisor
 - 成功输出 `OK:<工具数>`（当前约 66），失败输出 `ERR:timeout`
 - supervisor 日志：`%LOCALAPPDATA%\reverse-skill\ida-mcp\supervisor.log`
@@ -101,9 +108,10 @@ description: |
 powershell -File "<skill-root>\ida-reverse\scripts\start.ps1"
 ```
 
-### watchdog.ps1 / install-autostart.ps1 — 保活
+### watchdog.ps1 / recover.ps1 / install-autostart.ps1 — 保活
 
-- `watchdog.ps1`：探测 13337，健康则 `OK:<n>:reuse`，挂了才调用 `start.ps1`
+- `watchdog.ps1`：探测 13337；健康 reuse（并刷新 last-healthy）；GUI / `open.ps1` 开库锁 / last-healthy 未满 3 分钟的 busy → reuse；只有 `tools/list` 连续失败超过 3 分钟才 `start.ps1 -Force`
+- `recover.ps1`：立刻 `start.ps1 -Force`（不杀 `ida.exe`）。HTTP 客户端把 `idapro` 标成 error 时用这个
 - `install-autostart.ps1`：注册计划任务 `reverse-skill-ida-mcp`（登录 + 每分钟）
 - 日志：`%LOCALAPPDATA%\reverse-skill\ida-mcp\watchdog.log`
 

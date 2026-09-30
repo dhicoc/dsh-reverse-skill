@@ -92,7 +92,8 @@ case "$PRESET" in
     EVIDENCE_OF_AUTH="${EVIDENCE_OF_AUTH:-preset:own-system/lab}"
     ;;
   *)
-    echo "WARN: unknown preset '$PRESET' (allowed: offline-sample|ctf-public|own-system)" >&2
+    echo "ERROR: invalid --preset '$PRESET' (allowed: offline-sample|ctf-public|own-system)" >&2
+    exit 2
     ;;
 esac
 

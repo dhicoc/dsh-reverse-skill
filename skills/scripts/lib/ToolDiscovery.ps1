@@ -155,6 +155,20 @@ function Get-ReverseToolCatalog {
             )
         }
         [pscustomobject]@{
+            Name = 'binaryninja'
+            Skill = 'binary-ninja-reverse'
+            Purpose = 'Binary Ninja 商业逆向平台（GUI/Python API）'
+            FixedVersion = 'manual-license'
+            VersionArgs = @('--version')
+            Fallbacks = @(
+                [pscustomobject]@{ Type = 'command'; Value = 'binaryninja' },
+                [pscustomobject]@{ Type = 'command'; Value = 'binaryninja-headless' },
+                [pscustomobject]@{ Type = 'path'; Value = 'C:\Program Files\Vector35\BinaryNinja\binaryninja.exe' },
+                [pscustomobject]@{ Type = 'path'; Value = (Join-ReverseOptionalPath -Path $localAppData -ChildPath 'Vector35\BinaryNinja\binaryninja.exe') },
+                [pscustomobject]@{ Type = 'path'; Value = (Join-Path $userProfile 'Tools\BinaryNinja\binaryninja.exe') }
+            )
+        }
+        [pscustomobject]@{
             Name = 'frida'
             Skill = 'apk-reverse'
             Purpose = 'Frida 动态注入'

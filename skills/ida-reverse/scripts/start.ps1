@@ -23,6 +23,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+. (Join-Path $PSScriptRoot 'IdaOpenHelpers.ps1')
+
 function Get-IdaMcpLogDir {
     $dir = Join-Path $env:LOCALAPPDATA 'reverse-skill\ida-mcp'
     if (-not (Test-Path -LiteralPath $dir)) {
@@ -347,13 +349,22 @@ if ($guiOwners.Count -gt 0) {
 
 if (-not $Force) {
     if ($probe.Status -eq 'healthy') {
+        Write-IdaMcpLastHealthy -Port $Port
         Write-Output "OK:$($probe.Count)`:reuse"
         exit 0
     }
     if ($probe.Status -eq 'busy') {
-        Write-Output ("WARN:busy:port={0} pid={1}" -f $Port, ($probe.Owners -join ','))
-        Write-Output 'HINT: 13337 is listening but tools/list timed out (likely idb_open). Not killing supervisor.'
-        exit 0
+        $deadlock = Test-IdaMcpKeepaliveDeadlockFromFacts `
+            -GuiOwnsPort $false `
+            -OpeningInFlight (Test-IdaMcpOpeningInFlight -Port $Port) `
+            -LastHealthy (Read-IdaMcpLastHealthy -Port $Port) `
+            -Now (Get-Date)
+        if (-not $deadlock) {
+            Write-Output ("WARN:busy:port={0} pid={1}" -f $Port, ($probe.Owners -join ','))
+            Write-Output 'HINT: 13337 is listening but tools/list timed out (likely idb_open). Not killing supervisor.'
+            exit 0
+        }
+        Write-Output ("INFO:deadlock:port={0} pid={1} (tools/list unhealthy >180s, replacing)" -f $Port, ($probe.Owners -join ','))
     }
 }
 
@@ -494,6 +505,7 @@ for ($i = 0; $i -lt $WaitSeconds; $i++) {
     Start-Sleep -Seconds 1
     $toolCount = Test-IdaMcpHealth -Port $Port
     if ($toolCount -gt 0) {
+        Write-IdaMcpLastHealthy -Port $Port
         Write-Output "OK:$toolCount"
         $ready = $true
         break

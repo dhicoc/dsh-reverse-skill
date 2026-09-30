@@ -366,7 +366,26 @@ if ($invalidNetworkProcess.ExitCode -ne 0 -and -not (Test-Path -LiteralPath $inv
     Bad 'case-init accepted unsupported network profile or wrote a partial case'
 }
 
-# 14b) CaseName must remain a single safe directory name under work/.
+# 14b) Unknown presets must fail before writing a partial case.
+$invalidPresetName = 'p0-invalid-preset-' + (Get-Date -Format 'HHmmss')
+$invalidPresetProcess = Start-Process -FilePath $HostExe -ArgumentList @(
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ci,
+    '-Hint', 'invalid preset regression',
+    '-CaseName', $invalidPresetName,
+    '-PackageRoot', $PackageRoot,
+    '-Preset', 'definitely-not-valid'
+) -Wait -PassThru -WindowStyle Hidden
+$invalidPresetRoot = Join-Path $PackageRoot ("work\{0}" -f $invalidPresetName)
+if ($invalidPresetProcess.ExitCode -ne 0 -and -not (Test-Path -LiteralPath $invalidPresetRoot)) {
+    Ok 'case-init rejects unknown preset before writing case'
+} else {
+    Bad 'case-init accepted unknown preset or wrote a partial case'
+    if (Test-Path -LiteralPath $invalidPresetRoot) {
+        Remove-Item -LiteralPath $invalidPresetRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# 14c) CaseName must remain a single safe directory name under work/.
 $invalidCaseNames = @('..\case-escape', '../case-escape', 'case/name', 'case:name', '.. ', 'case.')
 $workRoot = Join-Path $PackageRoot 'work'
 foreach ($invalidCaseName in $invalidCaseNames) {

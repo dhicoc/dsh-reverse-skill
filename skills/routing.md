@@ -49,6 +49,7 @@ Route tasks to the most appropriate skill module by target type, user intent, an
 | Public-source threat intelligence / OSINT | `threat-intelligence/` | X/Twitter posts remain leads until independently corroborated |
 | Blue team / threat hunt | `threat-hunting/` | sample IOC → `malware-analysis/` |
 | Ghidra (no IDA) | `ghidra-reverse/` | `ida-reverse/` if IDA MCP available |
+| Binary Ninja / Binja | `binary-ninja-reverse/` — HLIL/MLIL/LLIL + Python API | Community Binary Ninja MCP/localhost HTTP adapter when explicitly enabled |
 
 | OLLVM-obfuscated binary (控制流平坦化/虚假控制流/MBA) | `reverse-engineering/references/ollvm-deobfuscation.md` — 完整脱密工作流 | obpo-plugin / d810-ng (IDA) / ollvm-unflattener (Miasm) / ollvm-breaker (Binary Ninja) / angr / deollvm (ARM64)
 | Cryptography / encryption algorithms | `reverse-engineering/patterns*.md` — crypto patterns | `js-reverse/` (if frontend crypto) |
@@ -177,6 +178,7 @@ Route tasks to the most appropriate skill module by target type, user intent, an
 | "BurpSuite / web proxy / intercept" | `pentest-tools/SKILL.md` — web proxy |
 | "protocol reverse / Protobuf / gRPC / custom protocol" | `protocol-reverse/SKILL.md` |
 | "Ghidra / analyzeHeadless / no IDA" | `ghidra-reverse/SKILL.md` |
+| "Binary Ninja / Binja / HLIL / MLIL / binary-ninja-mcp" | `binary-ninja-reverse/SKILL.md` |
 | "Kubernetes / K8s / container escape / cloud IAM" | `cloud-k8s/SKILL.md` |
 | "Active Directory / Kerberoast / Certipy / BloodHound" | `windows-ad/SKILL.md` |
 | "forensics / Volatility / memory dump / IR timeline" | `digital-forensics/SKILL.md` |
@@ -222,6 +224,7 @@ Do NOT force the user to repeatedly confirm "this is CTF/local." Carry the CTF/l
 | Frida | `reverse-engineering/tools-dynamic.md` |
 | GDB / GEF / pwndbg / rr | `reverse-engineering/tools.md` |
 | Ghidra (headless) | `reverse-engineering/tools.md` + Ghidra MCP |
+| Binary Ninja / binary-ninja-mcp | `binary-ninja-reverse/` — commercial GUI/API + explicit community MCP bridge on loopback |
 | Python 3 standard library | `case-review/`: read-only case evidence graph review |
 | angr / Qiling / Unicorn | `reverse-engineering/tools-dynamic.md` |
 | D-810 / d810-ng | `reverse-engineering/references/ollvm-deobfuscation.md` — IDA Pro 反混淆插件，OLLVM/Tigress/Hodur/Approov + Z3 SMT |
