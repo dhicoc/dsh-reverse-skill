@@ -17,6 +17,8 @@
 
 本仓库内容仅用于 **授权的** 逆向工程、渗透测试与安全研究。使用者须确保对目标系统拥有合法授权。一切未授权行为与本仓库无关。
 
+本包包含具有合法安全用途、同时也可能被滥用的内容（渗透测试技术、参考资料与辅助脚本），属 npm 所称的 **dual-use（军民两用）内容**。仓库根目录的 [`DISCLOSURE`](./DISCLOSURE) 文件对此作了完整说明。
+
 ---
 
 ## 目录结构
@@ -33,6 +35,7 @@ dsh-reverse-skill/
 ├── port.py                      # 归一化脚本（上游 → 本仓库的搬运/前导matter修正）
 ├── package.json
 ├── tsconfig.json
+├── DISCLOSURE                   # 双用途内容声明（内容与用途说明）
 └── LICENSE                      # MIT（与上游一致）
 ```
 
@@ -42,7 +45,28 @@ dsh-reverse-skill/
 
 ## 安装（插件形态）
 
-### 1. 安装依赖与构建
+本仓库已声明 `dsh.bundle` manifest（见 `cordis.patch.yml`），因此可直接用一行命令安装并激活：
+
+```bash
+# 从 GitHub 安装并激活
+dsh plugin add github:dhicoc/dsh-reverse-skill
+```
+
+> **安装通道说明**：请使用上面的 GitHub 通道。npm registry 上的 `@dhicoc/dsh-reverse-skill` 停留在 **1.0.x**——其 peer 依赖指向已淘汰的 `@deepseek-ai/dsh-skill ^0.0.1-rc.1`，与 DSH 0.2.0-rc.2 不兼容；后续版本受 npm 发布前扫描策略限制，未能更新到 registry。本仓库 `main` 分支始终是与当前 DSH 兼容的最新版本。
+
+安装后 dsh 会读取 `cordis.patch.yml` 把 `reverse-skill` 这个 Cordis 插件插入当前 profile，启动时自动注册 87 个技能。若你想在 profile / package 配置里手动引用，包名是 `@dhicoc/dsh-reverse-skill`：
+
+```yaml
+# dsh 配置（示例，键名可能因版本而异）
+plugins:
+  - "@dhicoc/dsh-reverse-skill"
+```
+
+加载后，插件在 `apply(ctx)` 里调用 `ctx.skills.registerProvider(...)`，把 87 个技能注册进 `ctx.skills`。模型可通过 `ctx.skills` → `tool-skill` 自动调用，用户也可通过技能名手动调用（受各 SKILL.md 的 `user-invocable` 控制）。
+
+### 从源码构建（可选）
+
+仅在需要自行编译 `lib/` 时使用：
 
 ```bash
 # 安装 peer 依赖（cordis / dsh-skill 由 dsh 运行时提供，这里用于类型与构建）
@@ -56,31 +80,12 @@ npm run build        # tsc → 生成 lib/ 与 lib/types/
 "main": "lib/index.js",
 "types": "lib/types/index.d.ts",
 "peerDependencies": {
-  "@deepseek-ai/cordis": "^4.0.1",
-  "@deepseek-ai/dsh-skill": "^0.0.1-rc.1"
+  "@deepseek-ai/cordis": "~4.0.4",
+  "@deepseek-ai/dsh-skill": "^0.2.0-rc.2"
 }
 ```
 
-### 2. 在 dsh 中启用本插件
-
-本仓库已声明 `dsh.bundle` manifest（见 `cordis.patch.yml`），因此可直接用一行命令安装并激活：
-
-```bash
-# 从 GitHub 安装并激活（推荐）
-dsh plugin add github:dhicoc/dsh-reverse-skill
-```
-
-安装后 dsh 会读取 `cordis.patch.yml` 把 `reverse-skill` 这个 Cordis 插件插入当前 profile，启动时自动注册 87 个技能。若你想在 profile / package 配置里手动引用，包名是 `@dhicoc/dsh-reverse-skill`：
-
-```yaml
-# dsh 配置（示例，键名可能因版本而异）
-plugins:
-  - "@dhicoc/dsh-reverse-skill"
-```
-
-加载后，插件在 `apply(ctx)` 里调用 `ctx.skills.registerProvider(...)`，把 87 个技能注册进 `ctx.skills`。模型可通过 `ctx.skills` → `tool-skill` 自动调用，用户也可通过技能名手动调用（受各 SKILL.md 的 `user-invocable` 控制）。
-
-### 3. （可选）非插件回退：直接当 preset 用
+### （可选）非插件回退：直接当 preset 用
 
 本仓库同时携带完整的 `skills/` 与 `CTF-Sandbox-Orchestrator/` 目录，可作为 preset 直接挂载，无需构建：
 
@@ -115,7 +120,7 @@ skills:
 npm test
 ```
 
-该命令会重新编译插件，并通过实际注册的 `SkillProvider` 断言 87 个已打包技能都能被 `list()` 发现、名称无重复且均能按需 `get()` 返回非空正文。测试还会临时创建一个带 UTF-8 BOM 和 CRLF 的 `SKILL.md`，确认扫描器不会静默跳过此类文件；fixture 在测试结束后会自动删除。发布工作流也会在 `npm publish` 前运行同一检查。
+该命令会重新编译插件，并通过实际注册的 `SkillProvider` 断言 87 个已打包技能都能被 `list()` 发现、名称无重复且均能按需 `get()` 返回非空正文。测试还会临时创建一个带 UTF-8 BOM 和 CRLF 的 `SKILL.md`，确认扫描器不会静默跳过此类文件；fixture 在测试结束后会自动删除。发布工作流也会在 `npm stage publish` 前运行同一检查。
 
 ---
 
@@ -126,6 +131,7 @@ npm test
 - **前导 matter 仅依赖 `name` / `description` / `user-invocable`**：本仓库 scanner 只读这三个字段，上游原始文件原样打包（CRLF / BOM 在运行时归一化），无需改写；其余字段作为技能正文一并随 `get()` 返回。
 - **MCP 工具（如 burp-mcp）需另行配置**：技能正文里引用的外部 MCP server 不在本插件范围内，请按 dsh 的 `mcp.servers` 自行接入。
 - **文档链接已重写**：正文内相对链接已改为 `../`（及 CTF 相关为 `../../CTF-Sandbox-Orchestrator/`），以适配 dsh 扁平挂载路径。
+- **npm registry 版本滞后**：见上文「安装通道说明」。本仓库以 GitHub 为分发通道。
 
 
 ## License
