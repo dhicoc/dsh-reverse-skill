@@ -6,10 +6,10 @@
 
 ## 统计
 
-- 真实项目数：21
+- 真实项目数：22
 - 种子参考数：17
-- 总条目数：38
-- 最近更新：2026-09-03
+- 总条目数：39
+- 最近更新：2026-10-07
 
 ## 按场景分类
 
@@ -21,6 +21,7 @@
 
 ### 二进制 / 固件 / CTF
 
+- [2026-10-07 Nuitka 自解压 PE 的常量块复原与内层管线重建](./2026-10-07_nuitka-packed-pe-constants-blob-recovery.md)
 - [2026-08-06_cortex-m-msc-firmware-self-keyed-rotate-xor](./2026-08-06_cortex-m-msc-firmware-self-keyed-rotate-xor.md)
 - [2026-07-22 Electron Bytenode 特权更新链分析](./2026-07-22_electron-bytenode-privileged-update-chain.md)
 - [2026-07-14_android-arm64-self-extract-source-recovery](./2026-07-14_android-arm64-self-extract-source-recovery.md)
@@ -86,6 +87,10 @@
 
 - [1 KiB 自带掩码 ROR/XOR、Cortex-M 向量 crib、跨固件验证](./2026-08-06_cortex-m-msc-firmware-self-keyed-rotate-xor.md)
 
+### Python 打包运行时复原
+
+- [Nuitka 常量块标签解码、CodeObjectSpec 推断、字面量运行期拼接消歧、目标自带 ffmpeg 验证](./2026-10-07_nuitka-packed-pe-constants-blob-recovery.md)
+
 ## 实体倒排（按目标特征）
 
 ### 多宿主安全技能路由包
@@ -100,6 +105,10 @@
 ### Cortex-M USB MSC 升级器
 
 - [应用/驻留 bootloader 边界与虚拟磁盘写入链路](./2026-08-06_cortex-m-msc-firmware-self-keyed-rotate-xor.md)
+
+### 自定义壳保护的 Nuitka onefile GUI 应用
+
+- [载荷区 RCDATA 常量块、原生层授权门禁早于 payload 加载、客户端内嵌凭据双层 base64](./2026-10-07_nuitka-packed-pe-constants-blob-recovery.md)
 
 ## 使用说明
 
