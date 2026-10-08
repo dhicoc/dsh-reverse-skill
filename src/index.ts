@@ -51,8 +51,22 @@ import type {
 // so dirname() would wrongly strip it and leave the package root (which also contains
 // node_modules and would double-count every SKILL.md). This holds for both local dev
 // (dsh-reverse-skill/lib) and the published package (node_modules/@dhicoc/dsh-reverse-skill/lib).
-const SKILLS_ROOT = fileURLToPath(new URL('../skills', import.meta.url))
-const CTF_ROOT = fileURLToPath(new URL('../CTF-Sandbox-Orchestrator', import.meta.url))
+// Resolve the bundled roots defensively. Some hosts load plugin bundles
+// through an internal module loader whose `import.meta.url` is NOT a `file:`
+// URL; a bare fileURLToPath there throws at module load (loud) or — worse, on
+// the v1.1.0 shape — a failed readdir silently cached an empty catalog (issue
+// #9). A resolved-but-missing root still yields a partial observation, so the
+// registry never caches it as authoritative; an unresolvable root disables
+// that root's discovery the same way.
+function resolveBundledRoot(relative: string): string | undefined {
+  try {
+    return fileURLToPath(new URL(relative, import.meta.url))
+  } catch {
+    return undefined
+  }
+}
+const SKILLS_ROOT = resolveBundledRoot('../skills')
+const CTF_ROOT = resolveBundledRoot('../CTF-Sandbox-Orchestrator')
 
 const PROVIDER_NAME = 'reverse-skill'
 
@@ -212,8 +226,14 @@ function createProvider(control: SkillProviderControl): SkillProvider {
   async function build(options: SkillLookupOptions): Promise<Catalog> {
     if (cache !== null) return cache
     const registration = control.signal
-    const skills = await collect(SKILLS_ROOT, registration, options)
-    const ctf = await collect(CTF_ROOT, registration, options)
+    // An unresolvable root (non-file: loader URL) reads as incomplete discovery
+    // for that root only — never as an authoritative empty catalog.
+    const skills = SKILLS_ROOT === undefined
+      ? { items: [], complete: false }
+      : await collect(SKILLS_ROOT, registration, options)
+    const ctf = CTF_ROOT === undefined
+      ? { items: [], complete: false }
+      : await collect(CTF_ROOT, registration, options)
     const candidates = [...skills.items, ...ctf.items].map(({ path, fm }) => {
       const userInv = fm['user-invocable']
       return {
