@@ -108,6 +108,7 @@ python3 skills/case-review/scripts/review_case.py work/<case> --verify-hashes --
 | **R29** | Wi-Fi / 无线渗透 | `wifi-wireless/` |
 | **R38** | RF / SDR 研究 | `radio-sdr/` |
 | **R32** | 厚客户端安全 | `thick-client/` |
+| **R46** | 软件解锁 / 授权绕过 / 激活 / 注册码 / keygen / 许可校验 / 试用到期 / 补丁后重打包 | `thick-client/` + `reverse-engineering/languages-platforms.md`（Electron ASAR 段）；差分参照 `binary-diff/` |
 | **R26** | 代码审计 / SAST / Semgrep | `code-audit/` |
 | **R27** | 威胁狩猎 / 检测工程 / 蓝队 | `threat-hunting/` |
 | **R10** | 攻击链 / 红队 / 横向 / 完整渗透 | `attack-chain/` |

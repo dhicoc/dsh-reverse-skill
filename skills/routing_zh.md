@@ -20,6 +20,7 @@
 | iOS / IPA 应用 | `mobile-reverse/SKILL.md` — iOS 逆向 + Frida/Objection | `mobile-reverse/references/ios-reverse-guide.md` — iOS 专项 |
 | 二进制 exe/dll/so/elf | `ida-reverse/` — IDA Pro 反编译 | `radare2/` — CLI 分析，或 `reverse-engineering/tools.md` — GDB/Unicorn |
 | JavaScript / Web 前端 | `js-reverse/` — 5 阶段工作流 | anything-analyzer MCP 的浏览器工具，或 jshookmcp 的浏览器/CDP/Hook 能力 |
+| **商业软件解锁 / 授权绕过（Electron・桌面应用）** | `thick-client/` — 信任边界四步：本地存储 / IPC / 更新通道 / 网络面 | `reverse-engineering/languages-platforms.md` — Electron ASAR 段（asar 解包 → 找 `.node` → 读 JS 明文验签链）；前端面 `js-reverse/` |
 | HTTP 抓包 / 浏览器采样 / 请求重放 | anything-analyzer MCP（23816） | Reqable MCP、`js-reverse/`、jshookmcp 或 `competition-web-runtime/` |
 | 固件 / IoT | `firmware-pentest/` — OWASP FSTM 全链路：提取→仿真→fuzz→利用 | `reverse-engineering/platforms.md` — 仅静态 RE / `reverse-engineering/tools.md` — Ghidra headless |
 | Binary Ninja / Binja | `binary-ninja-reverse/` — HLIL/MLIL/LLIL + Python API | 显式启用社区 MCP/本机 HTTP 适配器 |
@@ -175,6 +176,7 @@
 | "工控/OT/ICS/SCADA/PLC" | `ot-ics/SKILL.md` |
 | "macOS逆向/Mach-O" | `macos-reverse/SKILL.md` |
 | "厚客户端/桌面客户端" | `thick-client/SKILL.md` |
+| "解锁软件 / 授权绕过 / 激活 / 注册码 / keygen / 许可校验 / 试用到期 / 让它别校验 / 去掉激活弹窗 / 破解商用软件" | `thick-client/SKILL.md` + `reverse-engineering/languages-platforms.md`（Electron ASAR 段）；与官方版做差分的阶段加 `binary-diff/` |
 | "Go逆向/Rust逆向" | `go-rust-reverse/SKILL.md` |
 | "UART/JTAG/硬件调试" | `hardware-security/SKILL.md` |
 | "数据库安全/Redis/Mongo" | `database-security/SKILL.md` |
