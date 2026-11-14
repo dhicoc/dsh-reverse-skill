@@ -7,6 +7,15 @@ if ([string]::IsNullOrWhiteSpace($WorkflowPath)) {
     $WorkflowPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) '.github\workflows\auto-merge-journal.yml'
 }
 
+# auto-merge-journal.yml 是上游的 field-journal 自动合并机器人，本 dsh 封装只分发
+# skills/ 与 CTF-Sandbox-Orchestrator/（外加 lib/），不带这个 workflow。文件不存在时
+# 明确说明「没检查」，不给假绿；显式传入 -WorkflowPath 时仍然照常校验。
+if (-not (Test-Path -LiteralPath $WorkflowPath -PathType Leaf)) {
+    Write-Host "[N/A] auto-merge-journal workflow not shipped in this port: $WorkflowPath" -ForegroundColor Yellow
+    Write-Host 'WORKFLOW TITLE SAFETY CHECKS SKIPPED (nothing to check)' -ForegroundColor Yellow
+    exit 0
+}
+
 $text = Get-Content -LiteralPath $WorkflowPath -Raw -Encoding UTF8
 $failures = New-Object System.Collections.Generic.List[string]
 
