@@ -150,7 +150,10 @@ foreach ($rel in $opsFiles) {
 $indexLines | Set-Content -LiteralPath (Join-Path $ScratchDir 'artifacts-index.txt') -Encoding UTF8
 
 # --- links from hubs (skills + RULES single source) ---
-foreach ($hub in @('MASTER-ROUTING.md', 'SKILL.md', 'routing.md')) {
+# 路由技能按 agentskills.io 规范放在与 name 同名的目录里（skills/reverse-skill-router/），
+# 见 issue #21；其余 hub 文档仍直接位于 skills/ 下。
+$routerSkillRel = 'reverse-skill-router/SKILL.md'
+foreach ($hub in @('MASTER-ROUTING.md', $routerSkillRel, 'routing.md')) {
     $t = Get-Content (Join-Path $skillsRoot $hub) -Raw -Encoding UTF8
     if ($t -match 'ops/scope-contract|ops\\scope-contract|case-init') { Ok "hub link scope in $hub" }
     else { Bad "hub $hub missing scope/case-init link" }
@@ -159,7 +162,7 @@ foreach ($hub in @('MASTER-ROUTING.md', 'SKILL.md', 'routing.md')) {
 }
 # research deposits must be reachable from hubs
 $hubAll = ''
-foreach ($hub in @('MASTER-ROUTING.md', 'SKILL.md', 'ops/README.md', 'routing.md')) {
+foreach ($hub in @('MASTER-ROUTING.md', $routerSkillRel, 'ops/README.md', 'routing.md')) {
     $hp = Join-Path $skillsRoot $hub
     if (Test-Path $hp) { $hubAll += (Get-Content $hp -Raw -Encoding UTF8) }
 }
@@ -392,7 +395,7 @@ if ((Test-Path (Join-Path $defaultCaseRoot 'scope.md')) -and
 }
 
 # ghost dsl
-foreach ($rel in @('SKILL.md', 'routing.md', 'MASTER-ROUTING.md', 'scripts\master-route.ps1')) {
+foreach ($rel in @($routerSkillRel, 'routing.md', 'MASTER-ROUTING.md', 'scripts\master-route.ps1')) {
     $p = Join-Path $skillsRoot $rel
     if (-not (Test-Path $p)) { continue }
     $t = Get-Content $p -Raw -Encoding UTF8
@@ -501,7 +504,7 @@ if (Test-Path -LiteralPath $transitionContract) {
     if ($transitionText -like "*decision_delta*" -and $transitionText -like "*carry_forward_refs*") { Ok "timeline transition has delta-by-reference contract" } else { Bad "timeline transition missing delta-by-reference contract" }
     if ($transitionText -like "*authoritative state*" -and $transitionText -like "*MUST NOT*" -and $transitionText -like "*genuine decision boundary*") { Ok "timeline contract forbids unchanged context re-materialization" } else { Bad "timeline contract missing unchanged-context boundary" }
 } else { Bad "timeline-workitem.md missing" }
-$masterSkillText = Get-Content -LiteralPath (Join-Path $PackageRoot "skills/SKILL.md") -Raw -Encoding UTF8
+$masterSkillText = Get-Content -LiteralPath (Join-Path $skillsRoot 'reverse-skill-router/SKILL.md') -Raw -Encoding UTF8
 if ($masterSkillText -like "*genuine decision boundary*" -and $masterSkillText -like "*decision_delta*" -and $masterSkillText -like "*carry_forward_refs*") { Ok "master skill gates menus on genuine decisions" } else { Bad "master skill missing genuine decision boundary contract" }
 $routingText = Get-Content -LiteralPath (Join-Path $PackageRoot "skills/routing.md") -Raw -Encoding UTF8
 if ($routingText -like "*genuine decision boundary*" -and $routingText -notlike "*Always provide a next-step menu*") { Ok "routing ambiguity path no longer forces unconditional menu" } else { Bad "routing still forces unconditional next-step menu" }

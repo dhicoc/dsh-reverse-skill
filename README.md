@@ -32,8 +32,9 @@
 dsh-reverse-skill/
 ├── src/
 │   └── index.ts                 # 数据驱动的 Cordis 插件：递归扫描并注册全部 SKILL.md
-├── skills/                      # 46 个领域技能（上游 skills/ 1:1 复制）
-│   ├── SKILL.md                 # 路由技能 reverse-skill-router（上游根 SKILL.md）
+├── skills/                      # 46 个领域技能（上游 skills/ 复制）
+│   ├── reverse-skill-router/
+│   │   └── SKILL.md             # 路由技能（上游 skills/SKILL.md；见下）
 │   ├── pentest-tools/           # 含嵌套子技能 src-hunter 等
 │   └── reverse-engineering/     # 含嵌套子技能 dsl-vm-reverse 等
 ├── CTF-Sandbox-Orchestrator/    # 42 个 CTF 赛道技能
@@ -45,6 +46,8 @@ dsh-reverse-skill/
 ```
 
 > 相对路径：`src/index.ts` 通过 `fileURLToPath(new URL('../skills', import.meta.url))` 定位资源（编译后 `lib/index.js` 同样成立，因为 `skills/` 与 `lib/` 同属包根目录的相邻子目录）。注意这里**不能**再套一层 `dirname()`——`../skills` 这个 URL 已经指向目录本身，多套 `dirname` 会把它截断成包根目录，从而把 `node_modules` 里的 SKILL.md 也算进来。
+
+> 路由技能的位置：上游把路由器放在 `skills/SKILL.md`，但其 frontmatter 声明 `name: reverse-skill-router`，与 [agentskills.io 规范](https://agentskills.io/specification) 的「`name` 必须等于父目录名」不一致（issue #21）。本仓库因此把它放到 `skills/reverse-skill-router/SKILL.md`，其余 87 个技能本就符合该规则。插件按 frontmatter `name` 注册，所以运行时行为不变；这也正是 `port.py` 里 `restructure_router()` 一直想做的布局。文档仍留在 `skills/` 层，因此该文件内的路径引用带 `../` 前缀。
 
 ---
 

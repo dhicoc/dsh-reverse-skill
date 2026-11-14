@@ -171,7 +171,7 @@ $jsonRows = foreach ($report in $reports) {
 
 $jsonPayload = [pscustomobject]@{
     generated_at = $generatedAt
-    routing_entry = @('SKILL.md', 'routing.md')
+    routing_entry = @('reverse-skill-router/SKILL.md', 'routing.md')
     tools = $jsonRows
     capabilities = $capabilityRows
 }

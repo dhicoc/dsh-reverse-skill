@@ -84,7 +84,7 @@ $rulesEnPath = Resolve-Doc 'RULES.md'
 $rulesZhPath = Resolve-Doc 'RULES_zh.md'
 $rulesEn = if ($rulesEnPath) { Get-Content $rulesEnPath -Raw -Encoding UTF8 } else { $null }
 $rulesZh = if ($rulesZhPath) { Get-Content $rulesZhPath -Raw -Encoding UTF8 } else { $null }
-$skillMd = Get-Content (Join-Path $SkillsRoot 'SKILL.md') -Raw -Encoding UTF8
+$skillMd = Get-Content (Join-Path $SkillsRoot 'reverse-skill-router/SKILL.md') -Raw -Encoding UTF8
 
 if ($rulesEn) {
   $enList = Get-ListLine $rulesEn 'Supported capability names'

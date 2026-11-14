@@ -46,6 +46,7 @@
 | [radio-sdr](radio-sdr/SKILL.md) | Use for authorized RF/SDR security research including signal identification, replay feasibility study in shielded labs, and wireless protocol analysis outsid... |
 | [dsl-vm-reverse](reverse-engineering/dsl-vm-reverse/SKILL.md) | Reverse JavaScript-based custom DSL/VM interpreters, non-standard WASM-like runtimes, and risk-control engines. Use when analyzing IIFE or switch-based opcod... |
 | [reverse-engineering](reverse-engineering/SKILL.md) | Provides reverse engineering techniques. Use when the main job is to understand how a compiled, obfuscated, packed, or virtualized target works before exploi... |
+| [reverse-skill-router](reverse-skill-router/SKILL.md) | Routes reverse engineering, exploitation, penetration testing, malware, mobile, firmware, browser automation, documentation, and security tasks to the approp... |
 | [supply-chain-security](supply-chain-security/SKILL.md) | Use for software supply-chain security assessment covering SBOM, SCA, CI/CD pipelines, container images, build integrity, dependency provenance, and vulnerab... |
 | [thick-client](thick-client/SKILL.md) | Use for authorized security testing of desktop thick clients including local storage, update channels, IPC, traffic, and client-side trust boundaries. |
 | [threat-hunting](threat-hunting/SKILL.md) | Use for blue-team threat hunting, detection engineering with Sigma/YARA, SIEM query design, and incident detection validation. |
@@ -95,6 +96,7 @@ skills/radare2/SKILL.md/
 skills/radio-sdr/SKILL.md/
 skills/reverse-engineering/dsl-vm-reverse/SKILL.md/
 skills/reverse-engineering/SKILL.md/
+skills/reverse-skill-router/SKILL.md/
 skills/supply-chain-security/SKILL.md/
 skills/thick-client/SKILL.md/
 skills/threat-hunting/SKILL.md/

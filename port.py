@@ -61,17 +61,26 @@ def restructure_router(dst):
     src = os.path.join(dst, "skills", "SKILL.md")
     if not os.path.exists(src):
         return
+    # agentskills.io spec: `name` must equal the parent directory name (issue #21).
+    # Upstream keeps the router at skills/SKILL.md with name: reverse-skill-router.
     d = os.path.join(dst, "skills", "reverse-skill-router")
     os.makedirs(d, exist_ok=True)
     t = open(src, encoding="utf-8").read()
-    # docs (MASTER-ROUTING.md / routing.md / RULES.md / tool-index.md / ops/ / scripts/)
-    # live at skills/ level; router now one level deeper -> prefix ../
-    t = re.sub(r"(?<![\w/.])(MASTER-ROUTING\.md)", r"../\1", t)
-    t = re.sub(r"(?<![\w/.])(routing\.md)", r"../\1", t)
-    t = re.sub(r"(?<![\w/.])(RULES\.md)", r"../\1", t)
-    t = re.sub(r"(?<![\w/.])(tool-index\.md)", r"../\1", t)
-    t = re.sub(r"(?<![\w/.])(ops/)", r"../\1", t)
-    t = re.sub(r"(?<![\w/.])(scripts/)", r"../\1", t)
+    # docs (MASTER-ROUTING.md / routing.md / RULES.md / tool-index.md / ops/ /
+    # field-journal/ / config/ / scripts/) live at skills/ level; router now one
+    # level deeper -> prefix ../. Keep this list in sync with the references that
+    # actually occur in the upstream skills/SKILL.md.
+    for name in (
+        "MASTER-ROUTING.md",
+        "routing.md",
+        "RULES.md",
+        "tool-index.md",
+        "ops/",
+        "scripts/",
+        "field-journal/",
+        "config/",
+    ):
+        t = re.sub(r"(?<![\w/.\-])(" + re.escape(name) + r")", r"../\1", t)
     # CTF lives at repo root -> now two levels up
     t = t.replace("../CTF-Sandbox-Orchestrator/", "../../CTF-Sandbox-Orchestrator/")
     open(os.path.join(d, "SKILL.md"), "w", encoding="utf-8").write(t)
