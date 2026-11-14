@@ -255,6 +255,17 @@
         { "must": "thick.?client|desktop.?client|electron.?app|winforms|wpf|厚客户端|桌面.?客户端" }
       ]
     },
+    "R46": {
+      "label": "Software unlock / license bypass",
+      "skill": "thick-client/SKILL.md",
+      "keywords": [
+        {
+          "must": "解锁|激活|注册码|keygen|许可.?校验|license.?bypass|授权.?绕过|试用.?到期|破解[^\\s，。]{0,4}软件|patch.?license|license.?patch",
+          "exclude": "bola|bfla|\\bapi\\b|接口|graphql|jwt|oauth|\\bsso\\b|越权.?访问|激活函数|activation.?function|\\brelu\\b|sigmoid|softmax",
+          "note": "商业软件解锁/授权绕过：走 thick-client 信任边界（本地存储/IPC/更新通道），差分阶段配 binary-diff；Web API 越权仍归 R12"
+        }
+      ]
+    },
     "R33": {
       "label": "Go / Rust reverse",
       "skill": "go-rust-reverse/SKILL.md",
@@ -331,7 +342,7 @@
   "priority": [
     "R4", "R1", "R2", "R3", "R30", "R31", "R33", "R5", "R9", "R21",
     "R22", "R45", "R6", "R7", "R8", "R34", "R28", "R17", "R16", "R18", "R24",
-    "R37", "R23", "R35", "R25", "R44", "R36", "R29", "R38", "R32", "R26", "R27",
+    "R37", "R23", "R35", "R25", "R44", "R36", "R29", "R38", "R32", "R46", "R26", "R27",
     "R10", "R11", "R12", "R13", "R14", "R15", "R19", "R40", "R20", "R39", "R41", "R0"
   ]
 }
