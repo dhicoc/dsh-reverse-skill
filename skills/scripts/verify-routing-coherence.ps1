@@ -21,8 +21,23 @@ if (-not $ScratchDir) {
 }
 New-Item -ItemType Directory -Force -Path $ScratchDir | Out-Null
 $fail = New-Object System.Collections.Generic.List[string]
+$na = New-Object System.Collections.Generic.List[string]
 function Ok($m) { Write-Host "[OK] $m" -ForegroundColor Green }
 function Bad($m) { Write-Host "[FAIL] $m" -ForegroundColor Red; [void]$fail.Add($m) }
+function Note($m) { Write-Host "[N/A] $m" -ForegroundColor Yellow; [void]$na.Add($m) }
+
+# 本仓库是 reverse-skill 的 dsh 封装：随包分发的只有 `skills/` 与 `CTF-Sandbox-Orchestrator/`
+# （见 README 目录结构、package.json files）。上游根目录的 RULES.md / RULES_zh.md / kali/ /
+# burp-mcp-full/ 等不在分发范围内；规则文档在这里放在 skills/ 下。
+# 所以：包根优先、skills/ 兜底；两者都没有才算缺。找不到时只对「本来就不随包」的产物给 N/A，
+# 并把 N/A 计入 summary 单独打印，不静默通过。
+function Resolve-PackDoc([string] $leaf) {
+    foreach ($root in @($packageRoot, $skillsRoot)) {
+        $p = Join-Path $root $leaf
+        if (Test-Path -LiteralPath $p -PathType Leaf) { return $p }
+    }
+    return $null
+}
 
 # --- 新事实源/产物检查（routing.json / benchmark / INDEX） ---
 $routingJson = Join-Path $skillsRoot 'config/routing.json'
@@ -154,11 +169,19 @@ foreach ($n in @('community-security-skills', 'skill-supply-chain', 're-agent-wo
 }
 
 # RULES.md / RULES_zh.md MUST gate case-init/scope before ACT (injection + CRITICAL + chain)
-$rulesEn = Join-Path $packageRoot 'RULES.md'
-$rulesZh = Join-Path $packageRoot 'RULES_zh.md'
-foreach ($rp in @($rulesEn, $rulesZh)) {
-    $name = Split-Path $rp -Leaf
-    if (-not (Test-Path -LiteralPath $rp)) { Bad "missing $name"; continue }
+$rulesEn = Resolve-PackDoc 'RULES.md'
+$rulesZh = Resolve-PackDoc 'RULES_zh.md'
+foreach ($pair in @(@('RULES.md', $rulesEn), @('RULES_zh.md', $rulesZh))) {
+    $name = $pair[0]
+    $rp = $pair[1]
+    if (-not $rp) {
+        if ($name -eq 'RULES_zh.md') {
+            Note "$name not shipped (this port keeps one client-neutral rulebook at skills/RULES.md)"
+        } else {
+            Bad "missing $name (searched package root and skills/)"
+        }
+        continue
+    }
     $rt = Get-Content -LiteralPath $rp -Raw -Encoding UTF8
     if ($rt -match 'case-init' -and ($rt -match 'scope-contract|scope\.md|network_profile')) {
         Ok "$name has case-init/scope gate"
@@ -405,7 +428,9 @@ if (Test-Path -LiteralPath $kaliManifest) {
         Ok "kali-only capability: $missing"
     }
 } else {
-    Bad 'kali bootstrap-manifest.json missing'
+    # kali/ 是上游的 Linux 分发目录，不在本 dsh 封装的分发范围内（package.json files: lib, skills,
+    # CTF-Sandbox-Orchestrator）。缺它不是缺陷；但要在 summary 里显式记一条 N/A，不能静默跳过。
+    Note 'kali bootstrap-manifest.json not shipped (kali/ is upstream-only, outside this port''s files list)'
 }
 
 # --- supply-chain pin gate: auto-install download sources MUST be pinned ---
@@ -513,11 +538,11 @@ if (Test-Path -LiteralPath $wf77) {
     if ($wfText -like "*analysis-decision-framework*") { Ok "re-agent-workflow hooks ADF" } else { Bad "re-agent-workflow missing ADF hook" }
     if ($wfText -like "*analysis-blindspot-cookbook*") { Ok "re-agent-workflow hooks blindspot cookbook" } else { Bad "re-agent-workflow missing blindspot cookbook hook" }
 } else { Bad "re-agent-workflow.md missing" }
-$rules77 = Join-Path $PackageRoot "RULES.md"
-if (Test-Path -LiteralPath $rules77) {
+$rules77 = Resolve-PackDoc 'RULES.md'
+if ($rules77) {
     $rulesText = Get-Content -LiteralPath $rules77 -Raw -Encoding UTF8
     if ($rulesText -like "*analysis-decision-framework*") { Ok "RULES.md hooks ADF" } else { Bad "RULES.md missing ADF hook" }
-} else { Bad "RULES.md missing" }
+} else { Bad "RULES.md missing (searched package root and skills/)" }
 
 # Issue #77 batch 2 — blindspot cookbook anchors
 $bsc = Join-Path $PackageRoot "skills/ops/analysis-blindspot-cookbook.md"
@@ -538,6 +563,11 @@ if (Test-Path -LiteralPath $bsc) {
 }
 
 Write-Host "Scratch=$ScratchDir"
+if ($na.Count -gt 0) {
+    Write-Host ("NOT-APPLICABLE {0}" -f $na.Count) -ForegroundColor Yellow
+    $na | ForEach-Object { Write-Host " - $_" -ForegroundColor Yellow }
+    $na | Set-Content (Join-Path $ScratchDir 'not-applicable.txt') -Encoding UTF8
+}
 if ($fail.Count -gt 0) {
     Write-Host ("FAILED {0}" -f $fail.Count) -ForegroundColor Red
     $fail | ForEach-Object { Write-Host " - $_" }

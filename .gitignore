@@ -10,3 +10,7 @@ node_modules/
 # misc
 .DS_Store
 *.log
+
+# 路由/case 脚本的运行产物（master-route.ps1、case-init.ps1、verify-routing-coherence.ps1
+# 默认把 route-scope.md / scope.md / 校验输出写到 work/ 下），不入库
+work/
