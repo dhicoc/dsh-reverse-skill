@@ -4,7 +4,7 @@
 > 检索日期：2026-07-17  
 > 适用：安装/编写/合并 **任何** skill、MCP、bootstrap 脚本时
 
-本包**可执行脚本面**静态审计（后门 / 删库 / 管道执行）：[`docs/PACKAGE-SECURITY-AUDIT.md`](../../docs/PACKAGE-SECURITY-AUDIT.md)。
+本包**可执行脚本面**静态审计（后门 / 删库 / 管道执行）：[`docs/PACKAGE-SECURITY-AUDIT.md`](https://github.com/zhaoxuya520/reverse-skill/blob/main/docs/PACKAGE-SECURITY-AUDIT.md)（上游文档；本 dsh 封装只随包分发 `skills/` 与 `CTF-Sandbox-Orchestrator/`，故用上游链接）。
 
 ## 1. 为什么 reverse-skill 要单独管这个
 

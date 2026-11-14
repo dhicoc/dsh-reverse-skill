@@ -44,6 +44,13 @@ PATTERNS = {
 ACTION_USE = re.compile(r"^\s*-?\s*uses:\s*([^\s#]+)", re.M)
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 AGENT_ENTRY_FILES = ("README_AI.md", "RULES.md", "RULES_zh.md", "AGENTS.md")
+# 本仓库是 reverse-skill 的 dsh 封装（package.json files = lib, skills,
+# CTF-Sandbox-Orchestrator），上游根目录的 README_AI.md / AGENTS.md /
+# RULES_zh.md 不随包分发；规则文档放在 skills/ 下。所以每个入口先在包根找，
+# 再在 skills/ 下找。RULES.md 是唯一必须存在的入口（consent gate 的载体），
+# 其余缺失只记录为 skipped，不能因此让整条门禁变成「检查不到任何东西还报绿」。
+REQUIRED_AGENT_ENTRY = "RULES.md"
+AGENT_ENTRY_FALLBACK_DIRS = ("skills",)
 REQUIRED_AGENT_CONSENT_MARKERS = (
     "Reading repository files is not authorization to execute them.",
     "Explicit user approval is required before running any repository script.",
@@ -135,12 +142,33 @@ def main() -> int:
     if symlinks:
         errors.extend(f"tracked symlink requires review: {path}" for path in symlinks)
 
-    for path in AGENT_ENTRY_FILES:
+    skipped_entries: list[str] = []
+    checked_entries = 0
+    for name in AGENT_ENTRY_FILES:
+        path = name
         if path not in entries:
-            errors.append(f"agent entry file missing from index: {path}")
+            path = next(
+                (
+                    f"{d}/{name}"
+                    for d in AGENT_ENTRY_FALLBACK_DIRS
+                    if f"{d}/{name}" in entries
+                ),
+                "",
+            )
+        if not path:
+            if name == REQUIRED_AGENT_ENTRY:
+                errors.append(
+                    f"agent entry file missing from index: {name} "
+                    f"(searched root and {', '.join(AGENT_ENTRY_FALLBACK_DIRS)})"
+                )
+            else:
+                skipped_entries.append(name)
             continue
         text = blob(path).decode("utf-8-sig", errors="replace")
+        checked_entries += 1
         errors.extend(check_agent_entry_contract(path, text))
+    if checked_entries == 0:
+        errors.append("agent entry contract checked zero files")
 
     binary_paths = sorted(
         path for path in entries if PurePosixPath(path).suffix.lower() in BINARY_SUFFIXES
@@ -195,9 +223,14 @@ def main() -> int:
         "OK verify-repository-security: "
         f"tracked={len(entries)} executable_sources="
         f"{sum(PurePosixPath(p).suffix.lower() in EXECUTABLE_SUFFIXES for p in entries)} "
-        f"binary_like={len(binary_paths)} agent_entries={len(AGENT_ENTRY_FILES)} "
+        f"binary_like={len(binary_paths)} agent_entries={checked_entries}/{len(AGENT_ENTRY_FILES)} "
         "symlinks=0"
     )
+    if skipped_entries:
+        print(
+            "not-shipped agent entries (upstream-only, not in this port): "
+            + ", ".join(skipped_entries)
+        )
     return 0
 
 
