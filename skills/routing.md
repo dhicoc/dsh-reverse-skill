@@ -38,6 +38,7 @@ Route tasks to the most appropriate skill module by target type, user intent, an
 | OT / ICS / SCADA | `ot-ics/` | `firmware-pentest/` offline firmware |
 | macOS / Mach-O desktop | `macos-reverse/` | iOS → `mobile-reverse/` |
 | Thick desktop client | `thick-client/` | Electron → also `js-reverse/` |
+| Software unlock / license bypass / activation / keygen | `thick-client/` (file: R46) | Electron ASAR → `reverse-engineering/references/languages-platforms.md`; diff vs official build → `binary-diff/` |
 | Go / Rust stripped binary | `go-rust-reverse/` | `ida-reverse/` / `ghidra-reverse/` |
 | UART / JTAG / debug pads | `hardware-security/` | then `firmware-pentest/` |
 | Database instance security | `database-security/` | SQLi web path → `pentest-tools/` |
@@ -191,6 +192,7 @@ Route tasks to the most appropriate skill module by target type, user intent, an
 | "OT / ICS / SCADA / PLC / Modbus" | `ot-ics/SKILL.md` |
 | "macOS reverse / Mach-O / codesign" | `macos-reverse/SKILL.md` |
 | "thick client / desktop client / Electron security" | `thick-client/SKILL.md` |
+| "unlock software / license bypass / activation / registration code / keygen / license check / trial expired / stop checking license / remove activation dialog" | `thick-client/SKILL.md` + `reverse-engineering/references/languages-platforms.md` (Electron ASAR); add `binary-diff/` when diffing against the official build |
 | "Go reverse / Rust reverse / GoReSym" | `go-rust-reverse/SKILL.md` |
 | "UART / JTAG / hardware debug pads" | `hardware-security/SKILL.md` |
 | "database security / Redis / Mongo / MSSQL hardening" | `database-security/SKILL.md` |
