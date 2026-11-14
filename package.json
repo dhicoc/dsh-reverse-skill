@@ -1,7 +1,7 @@
 {
   "name": "@dhicoc/dsh-reverse-skill",
   "description": "Complete reverse-skill (88 skills) as a DeepSeek Harness Cordis plugin — reverse engineering, authorized pentesting and security research skill router pack.",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -38,7 +38,8 @@
       "dshReleases": {
         "0.1.7-rc.2": "compatible",
         "0.2.0-rc.1": "compatible",
-        "0.2.0-rc.2": "compatible"
+        "0.2.0-rc.2": "compatible",
+        "0.2.2-rc.3": "compatible"
       }
     }
   },
@@ -55,8 +56,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node _selftest.mjs",
-    "prepublishOnly": "tsc"
+    "test": "npm run build && node _selftest.mjs"
   },
   "engines": {
     "node": ">=20.0.0"
